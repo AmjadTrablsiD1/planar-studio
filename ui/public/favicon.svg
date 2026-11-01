@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14263A"/><stop offset="1" stop-color="#080E17"/></linearGradient>
+    <linearGradient id="cu" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7B979"/><stop offset="1" stop-color="#C8732F"/></linearGradient>
+    <linearGradient id="se" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7DE8D7"/><stop offset="1" stop-color="#2E9C8C"/></linearGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bg)"/>
+  <!-- E core seen from the front: yoke, outer legs, centre leg; the PCB stack in the window -->
+  <rect x="88" y="96" width="336" height="58" rx="10" fill="#7A8592"/>
+  <rect x="88" y="358" width="336" height="58" rx="10" fill="#7A8592"/>
+  <rect x="88" y="150" width="48" height="212" fill="#7A8592"/>
+  <rect x="376" y="150" width="48" height="212" fill="#7A8592"/>
+  <rect x="226" y="150" width="60" height="212" fill="#7A8592"/>
+  <rect x="146" y="176" width="68" height="44" rx="7" fill="url(#cu)"/>
+  <rect x="298" y="176" width="68" height="44" rx="7" fill="url(#cu)"/>
+  <rect x="146" y="236" width="68" height="44" rx="7" fill="url(#se)"/>
+  <rect x="298" y="236" width="68" height="44" rx="7" fill="url(#se)"/>
+  <rect x="146" y="296" width="68" height="44" rx="7" fill="url(#cu)"/>
+  <rect x="298" y="296" width="68" height="44" rx="7" fill="url(#cu)"/>
+</svg>

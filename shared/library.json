@@ -1,0 +1,25 @@
+{
+  "_comment": "Catalogue data, not constants. Dimensions in mm, IEC 62317-9 letter convention: A overall length, B height of one half, C depth, D window span (inner face of outer legs), E window height of one half, F centre-leg width (E) or diameter (ER), tp plate thickness. Ae/le are datasheet values for the E family (marked source 'catalogue'); for ER they are computed from the dimensions (source 'computed'). Verify against the vendor datasheet before ordering.",
+  "cores": [
+    { "id": "E14", "family": "E", "name": "E14/3.5/5 (ELP14)",   "A": 14.0,  "B": 3.5,  "C": 5.0,  "D": 11.0, "E": 2.0,  "F": 3.0,  "tp": 1.5, "Ae": 14.5, "le_plt": 16.7, "le_ee": 20.7 },
+    { "id": "E18", "family": "E", "name": "E18/4/10 (ELP18)",    "A": 18.0,  "B": 4.0,  "C": 10.0, "D": 14.0, "E": 2.0,  "F": 4.0,  "tp": 2.0, "Ae": 39.5, "le_plt": 20.3, "le_ee": 24.3 },
+    { "id": "E22", "family": "E", "name": "E22/6/16 (ELP22)",    "A": 21.8,  "B": 5.7,  "C": 15.8, "D": 16.8, "E": 3.2,  "F": 5.0,  "tp": 2.5, "Ae": 78.5, "le_plt": 26.1, "le_ee": 32.5 },
+    { "id": "E32", "family": "E", "name": "E32/6/20 (ELP32)",    "A": 31.75, "B": 6.35, "C": 20.32,"D": 24.9, "E": 3.18, "F": 6.35, "tp": 3.2, "Ae": 130,  "le_plt": 35.1, "le_ee": 41.4 },
+    { "id": "E38", "family": "E", "name": "E38/8/25 (ELP38)",    "A": 38.1,  "B": 8.26, "C": 25.4, "D": 30.2, "E": 4.45, "F": 7.6,  "tp": 3.8, "Ae": 194,  "le_plt": 43.7, "le_ee": 52.4 },
+    { "id": "E43", "family": "E", "name": "E43/10/28 (ELP43)",   "A": 43.2,  "B": 9.5,  "C": 27.9, "D": 34.7, "E": 5.4,  "F": 8.1,  "tp": 4.1, "Ae": 229,  "le_plt": 50.4, "le_ee": 61.1 },
+    { "id": "E58", "family": "E", "name": "E58/11/38 (ELP58)",   "A": 58.4,  "B": 10.5, "C": 38.1, "D": 50.0, "E": 6.5,  "F": 8.1,  "tp": 4.0, "Ae": 308,  "le_plt": 67.7, "le_ee": 80.6 },
+    { "id": "E64", "family": "E", "name": "E64/10/50 (ELP64)",   "A": 64.0,  "B": 10.2, "C": 50.8, "D": 53.8, "E": 5.1,  "F": 10.2, "tp": 5.1, "Ae": 519,  "le_plt": 69.7, "le_ee": 79.9 },
+    { "id": "ER14.5", "family": "ER", "name": "ER14.5/3/7",      "A": 14.5,  "B": 2.95, "C": 6.8,  "D": 11.6, "E": 1.55, "F": 4.7,  "tp": 1.4 },
+    { "id": "ER18",   "family": "ER", "name": "ER18/3.2/10",     "A": 18.0,  "B": 3.15, "C": 10.0, "D": 15.6, "E": 1.55, "F": 6.2,  "tp": 1.6 },
+    { "id": "ER23",   "family": "ER", "name": "ER23/3.6/13",     "A": 23.0,  "B": 3.6,  "C": 13.0, "D": 20.0, "E": 1.85, "F": 8.0,  "tp": 1.75 },
+    { "id": "ER32",   "family": "ER", "name": "ER32/6/25",       "A": 32.0,  "B": 6.0,  "C": 25.0, "D": 27.2, "E": 3.2,  "F": 11.0, "tp": 2.8 }
+  ],
+  "materials": [
+    { "id": "N87",  "vendor": "TDK",        "k": 2.1,   "alpha": 1.4, "beta": 2.5, "bsat_T": 0.39, "mu_i": 2200, "f_min": 25000,  "f_max": 500000,  "note": "general power ferrite" },
+    { "id": "N97",  "vendor": "TDK",        "k": 1.6,   "alpha": 1.4, "beta": 2.5, "bsat_T": 0.41, "mu_i": 2300, "f_min": 25000,  "f_max": 300000,  "note": "lower loss than N87 near 100 °C" },
+    { "id": "3C95", "vendor": "Ferroxcube", "k": 1.7,   "alpha": 1.4, "beta": 2.5, "bsat_T": 0.41, "mu_i": 3000, "f_min": 25000,  "f_max": 400000,  "note": "flat loss over temperature" },
+    { "id": "N49",  "vendor": "TDK",        "k": 0.147, "alpha": 1.6, "beta": 2.6, "bsat_T": 0.38, "mu_i": 1500, "f_min": 300000, "f_max": 1000000, "note": "high-frequency power ferrite" },
+    { "id": "3F36", "vendor": "Ferroxcube", "k": 0.12,  "alpha": 1.6, "beta": 2.6, "bsat_T": 0.40, "mu_i": 1600, "f_min": 300000, "f_max": 1200000, "note": "0.5–1 MHz power ferrite" }
+  ],
+  "_materials_comment": "Steinmetz Pv[W/m³] = k · f[Hz]^alpha · B[T]^beta, fitted by hand to the 100 °C datasheet loss curves (N87: ~375 kW/m³ at 100 kHz / 200 mT, ~300 kW/m³ at 300 kHz / 100 mT). Screening accuracy, roughly ±30 %. Bsat is the 100 °C value."
+}

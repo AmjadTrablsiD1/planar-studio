@@ -1,0 +1,22 @@
+{
+  "name": "planar-studio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Planar transformer design on a multilayer PCB: from Vin/Vout to a KiCad board, Gerbers and a report.",
+  "engines": { "node": ">=22.6" },
+  "scripts": {
+    "start": "node main.ts",
+    "dev:server": "node main.ts --port 5194 --no-open",
+    "dev:ui": "npm --prefix ui run dev",
+    "build": "npm --prefix ui run build",
+    "test": "node --test \"tests/*.test.ts\"",
+    "typecheck": "npm --prefix ui run typecheck",
+    "test:e2e": "playwright test",
+    "test:all": "npm test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0"
+  }
+}

@@ -1,0 +1,144 @@
+{
+  "_comment": "RULE 11: the single source of truth. No literal number, path, port, limit, label or rule-of-thumb may appear anywhere else in the code. core/ and server/ read it through core/constants.ts; the UI imports the same file. The core/ferrite catalogue is data and lives in library.json.",
+  "app": {
+    "id": "planar-studio",
+    "name": "Planar Studio",
+    "version": "0.1.0",
+    "icon": "🧲",
+    "tagline": "Planar transformer design on a multilayer PCB — from Vin/Vout to a KiCad board."
+  },
+  "server": {
+    "host": "127.0.0.1",
+    "port": 0,
+    "whoami_token": "planar-studio-1"
+  },
+  "paths": {
+    "state_dir": "~/.local/state/planar-studio",
+    "port_file": "~/.local/state/planar-studio/port"
+  },
+  "physics": {
+    "_comment": "SI. Copper resistivity at 20 °C and its temperature coefficient (IEC 60028 annealed copper).",
+    "mu0": 1.25663706212e-6,
+    "eps0": 8.8541878128e-12,
+    "rho_cu_20": 1.724e-8,
+    "alpha_cu": 0.00393
+  },
+  "pcb": {
+    "_comment": "Fabrication defaults. oz_um: finished copper thickness per weight. min_space_mm/min_trace_mm: typical standard-class rules per copper weight (heavier copper etches wider). eps_r and breakdown are FR-4/prepreg screening values.",
+    "oz_um": { "0.5": 17.5, "1": 35, "2": 70, "3": 105, "4": 140 },
+    "min_trace_mm": { "0.5": 0.1, "1": 0.15, "2": 0.2, "3": 0.25, "4": 0.3 },
+    "min_space_mm": { "0.5": 0.1, "1": 0.15, "2": 0.2, "3": 0.3, "4": 0.35 },
+    "eps_r": 4.4,
+    "breakdown_kV_per_mm": 20,
+    "soldermask_mm": 0.02,
+    "dielectric_default_mm": 0.2,
+    "dielectric_min_mm": 0.075,
+    "via_drill_mm": 0.3,
+    "via_pad_mm": 0.6,
+    "via_clearance_mm": 0.2,
+    "cutout_clearance_mm": 0.2,
+    "copper_pullback_mm": 0.3,
+    "core_vertical_clearance_mm": 0.05,
+    "terminal_length_mm": 4,
+    "board_margin_mm": 2,
+    "jog_min_mm": 0.8,
+    "_jog": "A spiral steps to the next turn over a transition jog_pitch_factor x turn pitch long (cosine ramp); where it climbs it is closer to its neighbour than the pitch, so the layout spacing is widened to keep min_space there.",
+    "jog_pitch_factor": 3,
+    "terminal_drill_mm": 1.0,
+    "terminal_pad_mm": 2.0,
+    "layer_counts": [2, 4, 6, 8, 10, 12, 14, 16],
+    "copper_options": ["1", "2", "3", "4"]
+  },
+  "isolation": {
+    "_comment": "Screening rules, not a certification. DTI: reinforced insulation through PCB laminate uses the 0.4 mm distance-through-insulation rule (IEC 62368-1 / 60950 style). Test voltage scales with working voltage; required thickness = test peak / (breakdown x derating). Creepage: IEC 60664-1 pollution degree 2, material group III, basic insulation, mm vs working Vrms; reinforced = 2x.",
+    "classes": ["functional", "basic", "reinforced"],
+    "dti_min_mm": { "functional": 0, "basic": 0, "reinforced": 0.4 },
+    "test_vrms_base": { "functional": 500, "basic": 1500, "reinforced": 3000 },
+    "test_vrms_per_vwork": { "functional": 1.5, "basic": 2, "reinforced": 4 },
+    "test_vrms_offset": { "functional": 0, "basic": 1000, "reinforced": 2000 },
+    "breakdown_derating": 0.5,
+    "creepage_table_vrms": [50, 100, 125, 150, 200, 250, 320, 400, 500, 630, 800, 1000],
+    "creepage_table_mm":   [1.2, 1.4, 1.5, 1.6, 2.0, 2.5, 3.2, 4.0, 5.0, 6.3, 8.0, 10.0],
+    "reinforced_factor": 2
+  },
+  "thermal": {
+    "_comment": "Natural-convection estimate for a ferrite core: dT[°C] = (P[mW] / A_surface[cm²])^0.833 (Ferroxcube / Magnetics application notes). The PCB spreads heat as well, so pcb_area_credit of the board area within one core-length around the core counts as surface.",
+    "exponent": 0.833,
+    "pcb_area_credit": 0.5,
+    "iterations": 4
+  },
+  "magnetics": {
+    "_comment": "bsat_margin: allowed peak flux as a fraction of Bsat at 100 °C. residual_gap_mm: what a ground ungapped mating surface behaves like. fringing uses McLyman's factor F = 1 + lg/sqrt(Ae) * ln(2 G / lg).",
+    "bsat_margin": 0.75,
+    "residual_gap_mm": 0.008,
+    "gap_max_mm": 3,
+    "gap_round_mm": 0.01,
+    "samples_per_period": 512,
+    "harmonics": 21,
+    "igse_quad_points": 2000
+  },
+  "optimiser": {
+    "_comment": "Search bounds. ns_max: largest secondary turn count tried. ratio_tol: accepted relative error of Np/Ns against the target (flyback and LLC tolerate more because duty or frequency absorbs it). top_n: candidates kept in the table.",
+    "ns_max": 8,
+    "np_max": 40,
+    "ratio_tol": { "flyback": 0.2, "forward": 0.08, "llc": 0.08, "fullbridge": 0.08 },
+    "max_turns_per_layer": 12,
+    "top_n": 40,
+    "objectives": ["loss", "size", "layers"],
+    "objective_labels": { "loss": "Lowest loss", "size": "Smallest core", "layers": "Fewest layers" },
+    "patterns": ["interleaved", "sandwich", "split"],
+    "pattern_labels": { "interleaved": "Interleaved P/S", "sandwich": "Sandwich", "split": "Non-interleaved" },
+    "current_density_warn_A_mm2": 25
+  },
+  "topology_defaults": {
+    "_comment": "Starting spec per topology, so switching topology gives a design that works. Units: V, A, Hz, s, F, °C.",
+    "flyback":    { "vinMin": 36, "vinNom": 48, "vinMax": 60, "vout": 12, "iout": 4, "vf": 0.05, "fsw": 200000, "eta": 0.92, "dMax": 0.45, "ripple": 0.8, "rectifier": "fullbridge", "tDead": 1e-7, "coss": 2e-10, "vWork": 60, "insulation": "functional" },
+    "forward":    { "vinMin": 36, "vinNom": 48, "vinMax": 75, "vout": 5, "iout": 20, "vf": 0.05, "fsw": 300000, "eta": 0.93, "dMax": 0.45, "ripple": 1, "rectifier": "fullbridge", "tDead": 1e-7, "coss": 2e-10, "vWork": 75, "insulation": "basic" },
+    "llc":        { "vinMin": 370, "vinNom": 390, "vinMax": 410, "vout": 12, "iout": 25, "vf": 0.05, "fsw": 500000, "eta": 0.97, "dMax": 0.5, "ripple": 1, "rectifier": "centertap", "tDead": 1e-7, "coss": 1.5e-10, "vWork": 250, "insulation": "reinforced" },
+    "fullbridge": { "vinMin": 300, "vinNom": 380, "vinMax": 420, "vout": 48, "iout": 20, "vf": 0.1, "fsw": 150000, "eta": 0.96, "dMax": 0.85, "ripple": 1, "rectifier": "fullbridge", "tDead": 1e-7, "coss": 3e-10, "vWork": 300, "insulation": "reinforced" }
+  },
+  "spec_defaults": {
+    "tAmb": 40,
+    "dTMax": 50,
+    "_lossBudget": "Allowed transformer loss as a percentage of Pout. With the default 'smallest core' objective this is what stops the search from just picking the largest core.",
+    "lossBudget": 1.5,
+    "maxLayers": 8,
+    "copper": ["1", "2", "3"],
+    "dielectric": 0.2,
+    "family": "all",
+    "material": "auto",
+    "objective": "size",
+    "operatingPoint": "nom"
+  },
+  "limits": {
+    "_comment": "Input bounds the form accepts. Anything outside is rejected with the field named.",
+    "vin": [1, 1500],
+    "vout": [0.5, 1000],
+    "iout": [0.01, 300],
+    "fsw": [10000, 5000000],
+    "eta": [0.5, 0.999],
+    "dMax": [0.05, 0.95],
+    "ripple": [0.05, 2],
+    "tAmb": [-40, 125],
+    "dTMax": [5, 120],
+    "lossBudget": [0.05, 20],
+    "vWork": [0, 5000],
+    "dielectric": [0.05, 2]
+  },
+  "ui": {
+    "storage_key_theme": "planar-studio.theme",
+    "storage_key_spec": "planar-studio.spec",
+    "storage_key_view": "planar-studio.view",
+    "default_theme_dark": "instrument",
+    "default_theme_light": "drafting",
+    "debounce_ms": 250,
+    "rail_width_px": 288,
+    "inspector_width_px": 332,
+    "bottom_height_px": 214,
+    "explode_gap_mm": 1.6,
+    "views": ["3d", "layers", "section", "waveforms", "tradeoffs", "steps"],
+    "view_labels": { "3d": "3D", "layers": "Layers", "section": "Section", "waveforms": "Waveforms", "tradeoffs": "Trade-offs", "steps": "Design steps" },
+    "toast_ms": 3200,
+    "chart_ref_width_px": 640
+  }
+}
