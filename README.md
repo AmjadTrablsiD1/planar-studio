@@ -81,7 +81,7 @@ npm test
 npm run test:e2e
 ```
 
-`npm test` — 45 core tests, including KiCad's own DRC on six generated boards
+`npm test` — 49 core tests, including KiCad's own DRC on eight generated boards
 (zero violations, zero unconnected items) when KiCad is installed.
 `npm run test:e2e` — Playwright drives the real UI in both themes: every view,
 every topology, every export (the downloaded KiCad project is DRC-checked

@@ -15,7 +15,7 @@ import { kicadPcb, kicadProject } from "../core/export/kicad.ts";
 import { gerberFiles, gerberZip } from "../core/export/gerber.ts";
 import { dxf } from "../core/export/dxf.ts";
 import { reportHtml } from "../core/export/report.ts";
-import type { Locks, TopologyId } from "../core/types.ts";
+import type { Locks, Spec, TopologyId } from "../core/types.ts";
 
 const KICAD = [
   "/Applications/KiCad/KiCad.app/Contents/MacOS/kicad-cli",
@@ -23,15 +23,18 @@ const KICAD = [
   "C:\\Program Files\\KiCad\\8.0\\bin\\kicad-cli.exe",
 ].find((p) => existsSync(p));
 
-const CASES: [TopologyId, Locks][] = [
-  ["flyback", {}], ["forward", {}], ["llc", {}], ["fullbridge", {}],
-  ["forward", { core: "E32", layers: 6, pattern: "sandwich" }],
-  ["llc", { core: "E43", set: "E+PLT" }],
+const CASES: [TopologyId, Locks, Partial<Spec>][] = [
+  ["flyback", {}, {}], ["forward", {}, {}], ["llc", {}, {}], ["fullbridge", {}, {}],
+  ["forward", { core: "E32", layers: 6, pattern: "sandwich" }, {}],
+  ["llc", { core: "E43", set: "E+PLT" }, {}],
+  // Single-turn layers avoided: every multi-turn winding becomes spirals with junction vias.
+  ["flyback", {}, { singleTurnLayers: false }],
+  ["fullbridge", {}, { singleTurnLayers: false }],
 ];
 
-for (const [id, locks] of CASES) {
-  const name = `${id}${locks.core ? `-${locks.core}` : ""}`;
-  const r = optimise(defaultSpec(id), locks);
+for (const [id, locks, over] of CASES) {
+  const name = `${id}${locks.core ? `-${locks.core}` : ""}${over.singleTurnLayers === false ? "-avoid-single" : ""}`;
+  const r = optimise({ ...defaultSpec(id), ...over }, locks);
   const d = r.best!;
   const g = buildGeometry(d.mag.core, d.layers, d.terminalMm, d.viaGapMm);
 
