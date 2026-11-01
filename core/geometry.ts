@@ -225,7 +225,8 @@ function viaSites(core: CoreInfo, layers: Layer[], viaGap: number): ViaSite[] {
       // does not cross that layer's terminal lead, which leaves behind it.
       const ahead = !inner && g + 1 === series - 1;
       const k = inner ? kIn++ : kOut++;
-      const s = ahead ? next[0].jog / 2 + k * pitch : -here[0].jog / 2 - k * pitch;
+      // Beside the gap, never in it: the stub leaves the turn half a pad back from its end.
+      const s = ahead ? next[0].jog / 2 + pad / 2 + k * pitch : -here[0].jog / 2 - pad / 2 - k * pitch;
       const flip = here[0].layer.side === "sec";
       out.push({
         ring, s, flip,
@@ -346,42 +347,51 @@ export function buildGeometry(core: CoreInfo, layers: Layer[], terminalMm: numbe
       if (k + 1 < c.order.length) prims.push(...transition(core, l.offsetsMm[ti], l.offsetsMm[c.order[k + 1]], c.s0 - c.jog, c.s0));
     }
     // Stubs to the junction vias: radially to the via ring, then along it.
-    const stubs: Prim[] = [];
+    // Leads and via stubs attach flush with the turn ends — half their own width
+    // back from the end, inside the turn's copper — so the gap between the two
+    // ends stays clear and nothing bulges into it.
+    const x0 = padX(l.winding);
+    const isFirst = l.series === 0, isLast = l.series === seriesOf(l.winding) - 1;
+    const leadW = Math.min(l.widthMm, C.pcb.terminal_pad_mm);
     const before = sites.find((v) => v.via.winding === l.winding && v.via.series === l.series - 1);
     const after = sites.find((v) => v.via.winding === l.winding && v.via.series === l.series);
+    const sA = c.s0 + (isFirst ? leadW : before ? stubW(l) : 0) / 2;
+    const sE = -c.jog / 2 - (isLast ? leadW : after ? stubW(l) : 0) / 2;
+    const startAt = pointAt(loopPrims(core, l.offsetsMm[c.order[0]]), sA);
+    const endAt = pointAt(loopPrims(core, l.offsetsMm[c.order[c.order.length - 1]]), sE);
+    const stubs: Prim[] = [];
     const along = (ring: Prim[], a: number, b: number) => (a < b ? walk(ring, a, b - a) : walk(ring, b, a - b));
     if (before) {
       const ring = loopPrims(core, before.ring);
-      stubs.push(...along(ring, before.s, c.s0));
-      stubs.push({ kind: "line", a: pointAt(ring, c.s0), b: c.start });
+      stubs.push(...along(ring, before.s, sA));
+      stubs.push({ kind: "line", a: pointAt(ring, sA), b: startAt });
     }
     if (after) {
       const ring = loopPrims(core, after.ring);
-      stubs.push({ kind: "line", a: c.end, b: pointAt(ring, -c.jog / 2) });
-      stubs.push(...along(ring, -c.jog / 2, after.s));
+      stubs.push({ kind: "line", a: endAt, b: pointAt(ring, sE) });
+      stubs.push(...along(ring, sE, after.s));
     }
     // Terminals: the chain start (series 0) goes to the right-hand pad, the chain
     // end to the left-hand one, so the two leads never have to cross. Leads are
     // at most a pad wide and turn below the pad row; when one lead's horizontal
     // run passes the other's start, it turns higher.
-    const x0 = padX(l.winding);
-    const isFirst = l.series === 0, isLast = l.series === seriesOf(l.winding) - 1;
-    const leadW = Math.min(l.widthMm, C.pcb.terminal_pad_mm);
     const gapL = Math.max(C.pcb.via_clearance_mm, C.pcb.min_space_mm[l.oz as keyof typeof C.pcb.min_space_mm]);
     const kneeHigh = yPad - (C.pcb.terminal_pad_mm / 2 + gapL + leadW / 2);
     const kneeLow = kneeHigh - (leadW + gapL);
     const pS = x0 + pitch / 2, pE = x0 - pitch / 2;
     const spans = (a: number, b: number, x: number) => x > Math.min(a, b) - leadW && x < Math.max(a, b) + leadW;
-    const startHigh = spans(c.start[0], pS, c.end[0]);
+    const startHigh = spans(startAt[0], pS, endAt[0]);
     const lead = (p: Pt, xPad: number, high: boolean): Prim[] => {
+      // Already in line with its pad: run straight into it (the pad covers the small offset).
+      if (Math.abs(p[0] - xPad) < C.pcb.terminal_pad_mm / 4) return [{ kind: "line", a: p, b: [p[0], yPad] }];
       const ky = Math.max(p[1] + C.pcb.terminal_pad_mm / 2, high ? kneeHigh : kneeLow);
       return ([
         { kind: "line", a: p, b: [p[0], ky] }, { kind: "line", a: [p[0], ky], b: [xPad, ky] }, { kind: "line", a: [xPad, ky], b: [xPad, yPad] },
       ] as Prim[]).filter((q) => len(q) > 1e-9);
     };
     const leads: Prim[] = [];
-    if (isFirst) leads.push(...lead(c.start, pS, startHigh));
-    if (isLast) leads.push(...lead(c.end, pE, !startHigh));
+    if (isFirst) leads.push(...lead(startAt, pS, startHigh));
+    if (isLast) leads.push(...lead(endAt, pE, !startHigh));
     traces.push({ layer: l.index, winding: l.winding, width: l.widthMm, prims: prims.map((p) => rotPrim(p, flip)), caps: "flat" });
     if (stubs.length) traces.push({ layer: l.index, winding: l.winding, width: stubW(l), prims: stubs.map((p) => rotPrim(p, flip)), caps: "round" });
     if (leads.length) traces.push({ layer: l.index, winding: l.winding, width: leadW, prims: leads.map((p) => rotPrim(p, flip)), caps: "round" });
