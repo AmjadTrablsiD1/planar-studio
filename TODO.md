@@ -6,15 +6,16 @@
 - Geometry: spiral turns as lines + arcs, smooth cosine transitions, junction vias on free rings, terminal leads that never cross, cut-outs with router-radius corners.
 - Exports: KiCad project (zones, blind/buried vias, stack-up, rules), Gerber X2 + Excellon per span, DXF, HTML report (print to PDF), design JSON.
 - UI: instrument shell, 3D (explode, section, top/front, pick), layers to scale, section + MMF, waveforms, trade-offs, design steps, inspector with evidence/checks/coverage, both themes.
-- Tests: 41 core (independent second routes; KiCad DRC on six boards), 9 Playwright (both themes, axe, fold probe).
+- Tests: 44 core (independent second routes; KiCad DRC on six boards), 9 Playwright (both themes, axe, fold probe).
 - Launchers: .command, .app with drawn icon, App Launcher tile, Windows .bat (untested).
+- Catalogue checked against TDK ELP and Ferroxcube E/ER datasheets (2026-11-01): per-set Ae/le/Ve/Amin, ER corrections (ER14.5 window 1.40 mm, ER32 leg 12.4 mm, ER18/23 depth), ER9.5/ER11 added, ER pairs only, trimmed ER leg tips; ferrite loss from datasheet points with local Steinmetz α (old fit was −48 % for N87 at 500 kHz, −44 % for 3F36 at 100 mT); Bsat from material sheets.
 
 ## Doing
 - (nothing)
 
 ## Next
 1. Run `run-planar-studio.bat` on the Windows 11 machine and fix what breaks.
-2. Check the core catalogue against the Ferroxcube/TDK datasheets; add exact ER data and the ELP set from TDK.
+2. Temperature dependence of ferrite loss (the sheets give 25 °C and 100 °C points; the model uses 100 °C).
 3. Local via pocket at the front instead of a full inner ring (gives the breadth back).
 4. KiCad footprint (`.kicad_mod`) export so the winding drops into an existing board.
 5. LTspice model export (Lm, Llk, Rac per winding as a coupled-inductor subcircuit) — the LTspice MCP is already on this Mac.

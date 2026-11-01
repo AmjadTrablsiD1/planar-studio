@@ -8,7 +8,8 @@ export function assumptions(d: Design): string[] {
   const a = [
     "1-D field in the window (Dowell/Ferreira): the field is parallel to the layers and uniform across the window breadth.",
     "Parallel layers share current equally. In reality a layer nearer the zero-field plane takes more; interleaving reduces the error.",
-    "Core loss from Steinmetz parameters fitted at 100 °C, applied through the iGSE to the actual flux waveform (±30 %).",
+    "Core loss from the material sheet's typical loss points at 100 °C (local Steinmetz α at fsw, β per material), through the iGSE on the actual flux waveform. Typical values: a given core may lose up to the datasheet maximum, often 1.5–2× more.",
+    "Core Ae, le, Ve and Amin are datasheet values (TDK ELP for E cores, Ferroxcube for ER); saturation is checked in Amin.",
     "Copper resistivity at the estimated hot-spot temperature; one natural-convection estimate for core and board together.",
     "Isolation and creepage use screening rules (DTI 0.4 mm for reinforced, IEC 60664-1 table). They are not a certification.",
   ];

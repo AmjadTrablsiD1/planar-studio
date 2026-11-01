@@ -4,7 +4,7 @@
 // charts draw. Anything in `locks` is held fixed.
 
 import { C } from "./constants.ts";
-import { CORES, boardHalf, coreInfo, turnLength } from "./cores.ts";
+import { CORES, boardHalf, coreInfo, setsOf, turnLength } from "./cores.ts";
 import { rhoCu } from "./winding.ts";
 import { materialsFor } from "./materials.ts";
 import { topology } from "./topologies/index.ts";
@@ -40,7 +40,6 @@ export type Result = {
   ms: number;
 };
 
-const SETS: CoreSet[] = ["E+PLT", "E+E"];
 
 function npOptions(s: Spec, ns: number, locks: Locks): number[] {
   if (locks.np) return [locks.np];
@@ -74,7 +73,6 @@ export function optimise(s: Spec, locks: Locks = {}, onProgress?: (done: number,
   const defs = topo.windings(s);
   const cores = locks.core ? CORES.filter((c) => c.id === locks.core)
     : CORES.filter((c) => s.family === "all" || c.family === s.family);
-  const sets = locks.set ? [locks.set] : SETS;
   const mats = locks.material ? [locks.material]
     : s.material !== "auto" ? [s.material] : materialsFor(s.fsw).map((m) => m.id);
   const nsList = locks.ns ? [locks.ns] : Array.from({ length: C.optimiser.ns_max }, (_, i) => i + 1);
@@ -97,9 +95,10 @@ export function optimise(s: Spec, locks: Locks = {}, onProgress?: (done: number,
   let pruned = 0;
   const tally: Record<string, number> = {}; // why candidates were rejected
 
-  const total = cores.length * sets.length * mats.length * nsList.length;
+  const total = cores.reduce((a, c) => a + setsOf(c).length, 0) * mats.length * nsList.length;
   let done = 0;
-  for (const c of cores) for (const set of sets) {
+  // Each core only in the assemblies it is sold as (ER cores come in pairs).
+  for (const c of cores) for (const set of setsOf(c).filter((x) => !locks.set || x === locks.set)) {
     const key = `${c.id}|${set}`;
     byCoreMap.set(key, { core: c.id, set, pTotal: null, pCore: null, pCopper: null });
     const hw = coreInfo(c.id, set).hw;

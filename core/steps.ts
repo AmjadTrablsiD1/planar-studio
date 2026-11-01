@@ -6,6 +6,7 @@ import { C, MM } from "./constants.ts";
 import { fmt, si, pct } from "./format.ts";
 import type { Design } from "./design.ts";
 import { skinDepth, rhoCu } from "./winding.ts";
+import { steinmetzAt } from "./materials.ts";
 import type { Step } from "./topologies/index.ts";
 
 export type Section = { title: string; steps: Step[] };
@@ -31,7 +32,7 @@ export function designSteps(d: Design): Section[] {
     { title: "Core and ferrite", formula: "smallest core meeting every check (objective: " + C.optimiser.objective_labels[s.objective] + ")",
       result: `${core.name}, ${d.choice.set}, ${m.mat.vendor} ${m.mat.id}: Ae = ${fmt(core.Ae)} mm², le = ${fmt(core.le)} mm, Ve = ${fmt(core.Ve / 1000)} cm³ (${core.source})` },
     { title: "Flux density from the winding currents", formula: "B(t) = Lm·im(t) / (Np·Ae),  im = Σ N·i / Np",
-      result: `ΔB = ${si(m.dBpp, "T")} p-p, B̂ = ${si(m.bPk, "T")} at ${si(m.op.vin, "V")}; worst B̂ = ${si(m.bPkWorst, "T")} at ${si(m.vinWorst, "V")}`,
+      result: `ΔB = ${si(m.dBpp, "T")} p-p, B̂ = ${si(m.bPk, "T")} at ${si(m.op.vin, "V")}; worst B̂ = ${si(m.bPkWorst, "T")} at ${si(m.vinWorst, "V")}, ${si(m.bPkAmin, "T")} in Amin = ${fmt(core.Amin)} mm²`,
       note: `Limit ${si(m.bMax, "T")} = ${C.magnetics.bsat_margin} × Bsat(100 °C). Np = ${m.np} is the turn count that keeps B̂ under it with the lowest total loss.` },
   ];
   if (m.topo.gapped && m.gapMm !== null) {
@@ -44,7 +45,10 @@ export function designSteps(d: Design): Section[] {
   }
   flux.push({ title: "Core loss (iGSE on the real flux waveform)", formula: "Pv = (1/T)·∫ ki·|dB/dt|^α·ΔB^(β−α) dt,  Pcore = Pv·Ve",
     result: `Pv = ${fmt(m.pv / 1e6, 3)} W/cm³ → Pcore = ${si(m.pCore, "W")}`,
-    note: `${m.mat.id}: k = ${m.mat.k}, α = ${m.mat.alpha}, β = ${m.mat.beta} at 100 °C.` });
+    note: (() => {
+      const st = steinmetzAt(m.mat, s.fsw);
+      return `${m.mat.id} at ${si(s.fsw, "Hz")}: local α = ${fmt(st.alpha)} from the datasheet points either side, β = ${fmt(st.beta)} (${m.mat.beta_source}), 100 °C.`;
+    })() });
   out.push({ title: "3 · Core, turns, gap and core loss", steps: flux });
 
   const plan = d.choice.plan.map((p) => {

@@ -76,7 +76,7 @@ npm test
 npm run test:e2e
 ```
 
-`npm test` — 41 core tests, including KiCad's own DRC on six generated boards
+`npm test` — 44 core tests, including KiCad's own DRC on six generated boards
 (zero violations, zero unconnected items) when KiCad is installed.
 `npm run test:e2e` — Playwright drives the real UI in both themes: every view,
 every topology, every export (the downloaded KiCad project is DRC-checked
@@ -86,10 +86,16 @@ fold probe at 1366×768 and 1440×900.
 ## Limitations
 
 - **Windows launcher untested on Windows** (written, never run there).
-- **Core catalogue** (`shared/library.json`): E/ELP values are datasheet
-  numbers typed from memory; ER dimensions are nominal and their Ae/le are
-  computed (the inspector marks which). Check against the vendor datasheet before ordering.
-- **Ferrite loss** parameters are hand-fitted to datasheet curves, about ±30 %.
+- **Core catalogue** (`shared/library.json`) was checked against the vendor
+  datasheets on 2026-11-01: E/ELP cores use TDK's ELP sheets (Ae, le, Ve and
+  Amin for both E+E and E+plate), ER cores Ferroxcube's (sold as pairs only).
+  Sources are listed in the file. Saturation is checked in Amin.
+- **Ferrite loss** comes from the typical loss points of each material sheet at
+  100 °C, with the Steinmetz α taken locally at fsw. Typical means typical: the
+  guaranteed maximum per set is 1.5–3.5× higher. 3C95 and 3F36 publish one
+  frequency only, so their frequency slope is borrowed (from N97 and N49);
+  N87/N97/3C95 use β = 2.5, the usual MnZn value, because their sheets give no
+  two flux levels at one frequency.
 - **Winding model is 1-D**: no end-turn, jog or lead effects; parallel layers
   are assumed to share current equally; the extra loss next to a gap from the
   2-D fringing field is not included; via and termination resistance ignored.

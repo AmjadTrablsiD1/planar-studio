@@ -12,7 +12,7 @@ export function Inspector({ d, picked, clearPick }: { d: Design | null; picked: 
     return (
       <aside className="inspector" aria-label="Inspector">
         <div className="inspector-head">Inspector</div>
-        <div className="inspector-scroll"><p className="body-text">No design yet. Adjust the inputs on the left; the search runs as you type.</p></div>
+        <div className="inspector-scroll" tabIndex={0} role="region" aria-label="Inspector details"><p className="body-text">No design yet. Adjust the inputs on the left; the search runs as you type.</p></div>
       </aside>
     );
   }
@@ -46,7 +46,7 @@ export function Inspector({ d, picked, clearPick }: { d: Design | null; picked: 
           </button>
         ))}
       </div>
-      <div className="inspector-scroll">
+      <div className="inspector-scroll" tabIndex={0} role="region" aria-label="Inspector details">
         {tab === "evidence" && (
           <>
             {L && R && (
@@ -68,7 +68,7 @@ export function Inspector({ d, picked, clearPick }: { d: Design | null; picked: 
               <div className="metric-row"><span>Turns Np : Ns</span><strong className="num" data-test="turns">{m.np} : {m.ns}<small>n = {fmt(m.n)} (target {fmt(m.nTarget)})</small></strong></div>
               <Metric label="Magnetising inductance" v={m.lm} unit="H" />
               <div className="metric-row"><span>Gap</span><strong className="num">{m.gapMm === null ? "none" : fmt(m.gapMm)}<small>{m.gapMm === null ? "" : "mm centre leg"}</small></strong></div>
-              <Metric label="Peak flux (worst line)" v={m.bPkWorst} unit="T" q="q-B" />
+              <Metric label="Peak flux at Amin (worst line)" v={m.bPkAmin} unit="T" q="q-B" />
               <Metric label="Flux swing p-p" v={m.dBpp} unit="T" q="q-B" />
               <Metric label="Core loss (iGSE)" v={m.pCore} unit="W" q="q-pcore" />
               <div className="metric-row"><span>Ae · le · Ve</span><strong className="num">{fmt(m.core.Ae)}<small>mm²</small> {fmt(m.core.le)}<small>mm</small> {fmt(m.core.Ve / 1000)}<small>cm³ {m.core.source}</small></strong></div>

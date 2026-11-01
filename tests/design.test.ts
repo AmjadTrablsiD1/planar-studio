@@ -74,7 +74,7 @@ test("stack: turn splits, chain rule, stack orders", () => {
 
 test("geometry: a loop is as long as the turn the loss model uses; walks keep length", () => {
   for (const id of ["E32", "ER18"]) {
-    const c = coreInfo(id, "E+PLT");
+    const c = coreInfo(id, id.startsWith("ER") ? "E+E" : "E+PLT");
     const loop = loopPrims(c, 1.3);
     near(perimeter(loop), turnLength(c, 1.3), 1e-9, id);
     near(perimeter(walk(loop, 2, perimeter(loop) - 1.5)), perimeter(loop) - 1.5, 1e-9, id);

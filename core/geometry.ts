@@ -311,19 +311,7 @@ export function buildGeometry(core: CoreInfo, layers: Layer[], terminalMm: numbe
     const nLeg = Math.ceil((2 * Math.PI * r) / 0.1);
     const rv = r / Math.cos(Math.PI / nLeg);
     cutouts.push(Array.from({ length: nLeg }, (_, k): Pt => [rv * Math.cos((2 * Math.PI * k) / nLeg), rv * Math.sin((2 * Math.PI * k) / nLeg)]));
-    const R = core.D / 2 - clr, yC = core.Cd / 2 + clr, xA = core.A / 2 + clr;
-    const th = Math.asin(Math.min(1, yC / R));
-    const n = Math.ceil((2 * th * R) / 0.1);
-    const Rv = R / Math.cos(th / n);
-    for (const sgn of [1, -1]) {
-      const arc: Pt[] = [[sgn * R * Math.cos(-th), -yC]];
-      for (let k = 0; k < n; k++) {
-        const a = -th + (2 * th * (k + 0.5)) / n;
-        arc.push([sgn * Rv * Math.cos(a), Rv * Math.sin(a)]);
-      }
-      arc.push([sgn * R * Math.cos(th), yC]);
-      cutouts.push([...arc, [sgn * xA, yC], [sgn * xA, -yC]]);
-    }
+    for (const sgn of [1, -1]) cutouts.push(erLeg(core, clr, sgn as 1 | -1));
   } else {
     // The leg cut-out is the leg grown by the clearance, corners rounded like the
     // copper around it (and like the router bit that mills it).
@@ -406,6 +394,34 @@ export function buildGeometry(core: CoreInfo, layers: Layer[], terminalMm: numbe
     }
   }
   return { board, cutouts, traces, vias: sites.map((v) => v.via), terminals, half };
+}
+
+/**
+ * One ER outer leg seen from the top, grown by `clr`: the window arc, the
+ * trimmed tips back to the opening (when the datasheet gives one), and the
+ * core end. Arc vertices sit on the circumscribed polygon so no edge comes
+ * inside the true circle — the copper keep-back is never eaten by a chord.
+ */
+export function erLeg(core: CoreInfo, clr: number, sgn: 1 | -1): Pt[] {
+  const R = core.D / 2 - clr, yC = core.Cd / 2 + clr, xA = core.A / 2 + clr;
+  const natural = Math.sqrt(Math.max(0, R * R - yC * yC));
+  const xo = core.open !== null ? core.open / 2 - clr : 0;
+  // Trimmed tips: the arc stops where it reaches x = open/2, then the tip runs straight out.
+  const th = xo > natural ? Math.acos(Math.min(1, xo / R)) : Math.asin(Math.min(1, yC / R));
+  const yArc = R * Math.sin(th);
+  const n = Math.max(2, Math.ceil((2 * th * R) / 0.1));
+  const Rv = R / Math.cos(th / n);
+  const pts: Pt[] = [];
+  if (xo > natural) pts.push([sgn * xo, -yC]);
+  pts.push([sgn * R * Math.cos(th), -yArc]);
+  for (let k = 0; k < n; k++) {
+    const a = -th + (2 * th * (k + 0.5)) / n;
+    pts.push([sgn * Rv * Math.cos(a), Rv * Math.sin(a)]);
+  }
+  pts.push([sgn * R * Math.cos(th), yArc]);
+  if (xo > natural) pts.push([sgn * xo, yC]);
+  pts.push([sgn * xA, yC], [sgn * xA, -yC]);
+  return pts;
 }
 
 /** A primitive chain run backwards. */

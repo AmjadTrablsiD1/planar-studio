@@ -11,7 +11,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import type { Design } from "../../core/design.ts";
-import { outline, type Geometry, type Pt } from "../../core/geometry.ts";
+import { erLeg, outline, type Geometry, type Pt } from "../../core/geometry.ts";
 
 export type ScenePalette = { ferrite: string; pri: string; sec: string; sec2: string; fr4: string; via: string; iso: string };
 
@@ -104,13 +104,7 @@ export function createScene(
       const c = new THREE.Mesh(geo(new THREE.CylinderGeometry(core.F / 2, core.F / 2, centreH, 64)), ferrite);
       c.position.set(0, centreY0 + centreH / 2, 0);
       add(group, c);
-      const R = core.D / 2, yC = core.Cd / 2, th = Math.asin(Math.min(1, yC / R));
-      for (const sgn of [1, -1]) {
-        const pts: Pt[] = [];
-        for (let k = 0; k <= 32; k++) { const a = -th + (2 * th * k) / 32; pts.push([sgn * R * Math.cos(a), R * Math.sin(a)]); }
-        pts.push([sgn * core.A / 2, yC], [sgn * core.A / 2, -yC]);
-        add(group, slab(shapeOf(pts), y0, h, ferrite));
-      }
+      for (const sgn of [1, -1] as const) add(group, slab(shapeOf(erLeg(core, 0, sgn)), y0, h, ferrite));
     } else {
       add(group, box(0, centreY0, 0, core.F, centreH, core.Cd, ferrite));
       const ow = (core.A - core.D) / 2;

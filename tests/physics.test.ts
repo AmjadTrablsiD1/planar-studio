@@ -3,8 +3,8 @@
 // point, an energy balance, or an analytic special case.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { igse, material, steinmetz } from "../core/materials.ts";
-import { coreInfo, CORES, turnLength } from "../core/cores.ts";
+import { igse, material, MATERIALS, steinmetz, steinmetzAt } from "../core/materials.ts";
+import { coreInfo, CORES, setsOf, turnLength } from "../core/cores.ts";
 import { gapFor, inductance } from "../core/gap.ts";
 import { dowellFr, dowellG, skinDepth, rhoCu, stackLoss, leakage } from "../core/winding.ts";
 import { sample, harmonics, rms } from "../core/waveform.ts";
@@ -38,21 +38,42 @@ test("iGSE on a symmetric triangle matches the closed form k_i·(2f)^α·ΔB^β�
   const m = material("3C95");
   const f = 100e3, dB = 0.2, N = 4096;
   const b = sample(N, (u) => (u < 0.5 ? -dB / 2 + 2 * dB * u : dB / 2 - 2 * dB * (u - 0.5)));
+  const st = steinmetzAt(m, f);
   let integ = 0;
   const n = 20000;
-  for (let i = 0; i < n; i++) integ += Math.abs(Math.cos(((i + 0.5) * 2 * Math.PI) / n)) ** m.alpha;
-  integ *= ((2 * Math.PI) / n) * 2 ** (m.beta - m.alpha);
-  const ki = m.k / ((2 * Math.PI) ** (m.alpha - 1) * integ);
-  near(igse(m, b, 1 / f), ki * 2 ** m.alpha * f ** m.alpha * dB ** m.beta, 0.003);
+  for (let i = 0; i < n; i++) integ += Math.abs(Math.cos(((i + 0.5) * 2 * Math.PI) / n)) ** st.alpha;
+  integ *= ((2 * Math.PI) / n) * 2 ** (st.beta - st.alpha);
+  const ki = st.k / ((2 * Math.PI) ** (st.alpha - 1) * integ);
+  near(igse(m, b, 1 / f), ki * 2 ** st.alpha * f ** st.alpha * dB ** st.beta, 0.003);
 });
 
-test("N87 Steinmetz fit sits on the datasheet at 100 °C (two independent points)", () => {
+test("core loss passes through every typical point of every material sheet", () => {
+  // Exact, except where two points share a frequency and are joined through β (3F36: 0.03 %).
+  for (const m of MATERIALS) for (const [f, b, p] of m.points) near(steinmetz(m, f, b) / 1e3, p, 1e-3, `${m.id} ${f} Hz ${b} T`);
+  // The fault the old single fit had: N87 at 500 kHz / 50 mT is 215 kW/m³ on the sheet.
+  near(steinmetz(material("N87"), 500e3, 0.05) / 1e3, 215, 1e-9);
+});
+
+test("typical core loss stays under the guaranteed maximum of the product sheets (independent source)", () => {
+  // [material, f, B̂, Ve mm³, max W per set] — TDK ELP 14 (EELP) and Ferroxcube E14 / ER18 product specifications.
+  const cases: [string, number, number, number, number][] = [
+    ["N87", 100e3, 0.2, 296, 0.20], ["N97", 100e3, 0.2, 296, 0.16], ["N49", 500e3, 0.05, 296, 0.08],
+    ["3C95", 100e3, 0.2, 300, 0.14], ["3F36", 500e3, 0.05, 300, 0.045], ["3F36", 500e3, 0.1, 300, 0.34], ["3C95", 100e3, 0.2, 667, 0.32],
+  ];
+  for (const [id, f, b, ve, max] of cases) {
+    const w = (steinmetz(material(id), f, b) * ve) / 1e9;
+    // Vendors guarantee 1.5–3.5× the typical value (TDK N49: 0.024 W typical, 0.08 W max).
+    assert.ok(w < max && w > max / 5, `${id} ${f} Hz ${b} T: ${w.toFixed(3)} W typical against ${max} W max`);
+  }
+});
+
+test("local Steinmetz exponent rises with frequency, as the N87 sheet shows", () => {
   const m = material("N87");
-  near(steinmetz(m, 100e3, 0.2), 375e3, 0.15, "100 kHz / 200 mT");
-  near(steinmetz(m, 300e3, 0.1), 300e3, 0.15, "300 kHz / 100 mT");
+  assert.ok(steinmetzAt(m, 50e3).alpha < steinmetzAt(m, 200e3).alpha);
+  assert.ok(steinmetzAt(m, 200e3).alpha < steinmetzAt(m, 400e3).alpha);
 });
 
-test("le from the dimensions agrees with the catalogue within 5 % for every E core", () => {
+test("le from the dimensions agrees with the datasheet within 5 % for every E core", () => {
   for (const c of CORES.filter((x) => x.family === "E")) {
     for (const set of ["E+PLT", "E+E"] as const) {
       const cat = coreInfo(c.id, set).le;
@@ -64,10 +85,21 @@ test("le from the dimensions agrees with the catalogue within 5 % for every E co
   }
 });
 
-test("ER cores: Ae is the round centre leg", () => {
-  const e = coreInfo("ER18", "E+PLT");
-  near(e.Ae, (Math.PI * 6.2 ** 2) / 4, 1e-9);
-  assert.equal(e.source, "computed");
+test("datasheet sets: Ve ≈ Ae·le, Amin ≤ Ae, ER cores only as pairs", () => {
+  for (const c of CORES) for (const set of setsOf(c)) {
+    const k = coreInfo(c.id, set);
+    assert.equal(k.source, "datasheet");
+    near(k.Ve, k.Ae * k.le, 0.04, `${c.id} ${set} Ve`);
+    assert.ok(k.Amin <= k.Ae, `${c.id} Amin`);
+  }
+  for (const c of CORES.filter((x) => x.family === "ER")) assert.deepEqual(setsOf(c), ["E+E"]);
+  assert.throws(() => coreInfo("ER18", "E+PLT"), /not sold as E\+PLT/);
+});
+
+test("ER exit opening: trimmed tips (ER18, 13.5 mm) and a plain window circle (ER32)", () => {
+  near(coreInfo("ER18", "E+E").opening, 13.5 / 2 - 0.2 - 0.3, 1e-12);
+  // ER32 has no trimmed tips: the 27.2 mm window circle meets the 25.4 mm depth.
+  near(coreInfo("ER32", "E+E").opening, Math.sqrt((13.6 - 0.2) ** 2 - (12.7 + 0.2) ** 2) - 0.3, 1e-12);
 });
 
 test("turn length of an E-core turn: rounded rectangle perimeter", () => {

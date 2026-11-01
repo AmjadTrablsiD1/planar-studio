@@ -28,7 +28,7 @@ export type Magnetic = {
   fringe: number;
   op: Operation;
   b: Float64Array;
-  bPk: number; bPkWorst: number; vinWorst: number; dBpp: number; bMax: number;
+  bPk: number; bPkWorst: number; bPkAmin: number; vinWorst: number; dBpp: number; bMax: number;
   pv: number; pCore: number;
   harm: Record<string, Complex[]>;
   irms: Record<string, number>;
@@ -109,10 +109,12 @@ export function magnetic(s: Spec, coreId: string, set: CoreSet, matId: string, n
     if (pk > bPkWorst) { bPkWorst = pk; vinWorst = v; }
   }
   const bMax = mat.bsat_T * C.magnetics.bsat_margin;
+  // Saturation starts in the narrowest section, so the limit applies to the flux at Amin.
+  const bPkAmin = (bPkWorst * core.Ae) / core.Amin;
   checks.push({
-    id: "flux", label: "Peak flux", ok: bPkWorst <= bMax, severity: bPkWorst <= bMax ? "info" : "fail",
-    value: bPkWorst, limit: bMax, unit: "T",
-    detail: `B̂ = ${(bPkWorst * 1000).toFixed(0)} mT at ${vinWorst} V against ${(bMax * 1000).toFixed(0)} mT (${C.magnetics.bsat_margin} × Bsat ${(mat.bsat_T * 1000).toFixed(0)} mT at 100 °C).`,
+    id: "flux", label: "Peak flux", ok: bPkAmin <= bMax, severity: bPkAmin <= bMax ? "info" : "fail",
+    value: bPkAmin, limit: bMax, unit: "T",
+    detail: `B̂ = ${(bPkAmin * 1000).toFixed(0)} mT in the narrowest section (Amin ${core.Amin} mm²) at ${vinWorst} V against ${(bMax * 1000).toFixed(0)} mT (${C.magnetics.bsat_margin} × Bsat ${(mat.bsat_T * 1000).toFixed(0)} mT at 100 °C).`,
   });
 
   const dLimit = s.topology === "flyback" ? 0.95 : s.topology === "forward" ? s.dMax + 0.05 : s.topology === "fullbridge" ? 0.98 : 1;
@@ -133,7 +135,7 @@ export function magnetic(s: Spec, coreId: string, set: CoreSet, matId: string, n
   return {
     core, mat, topo, defs, np, ns, n, nTarget, lm, lmTarget, gapMm,
     fringe: gapMm === null ? 1 : fringing(gapMm, core.Ae, core.hw),
-    op, b, bPk: Math.max(Math.abs(lo), Math.abs(hi)), bPkWorst, vinWorst, dBpp: hi - lo, bMax,
+    op, b, bPk: Math.max(Math.abs(lo), Math.abs(hi)), bPkWorst, bPkAmin, vinWorst, dBpp: hi - lo, bMax,
     pv, pCore: pv * core.Ve * MM * MM * MM, harm, irms, checks,
   };
 }
