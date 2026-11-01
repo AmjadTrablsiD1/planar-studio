@@ -135,6 +135,18 @@ export function Rail({ spec, setSpec, locks, setLocks, errors, onTopology, onPin
         </div>
         {err("copper") && <span className="hint err">{err("copper")}</span>}
       </div>
+      <div className="field">
+        <span className="label">Single-turn layers</span>
+        <div className="chips" role="radiogroup" aria-label="Single-turn layers">
+          {([[true, "Allow"], [false, "Avoid"]] as const).map(([v, label]) => (
+            <button key={label} role="radio" aria-checked={spec.singleTurnLayers === v} className={`chip ${spec.singleTurnLayers === v ? "on" : ""}`}
+              onClick={() => set("singleTurnLayers", v)} data-test={`single-${label.toLowerCase()}`}>{label}</button>
+          ))}
+        </div>
+        <span className="hint">{spec.singleTurnLayers
+          ? "One wide turn per layer is allowed: lowest resistance, a via per turn."
+          : "Turns spread as spirals of two or more per layer (a one-turn winding is exempt)."}</span>
+      </div>
 
       <div className="eyebrow">Search</div>
       <div className="row2">

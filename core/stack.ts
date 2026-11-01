@@ -38,8 +38,12 @@ export function directions(turns: number[]): Direction[] {
   });
 }
 
-/** Every valid series/parallel arrangement of `layers` layers carrying `turns` turns. */
-export function arrangements(winding: string, layers: number, turns: number): WindingPlan[] {
+/**
+ * Every valid series/parallel arrangement of `layers` layers carrying `turns`
+ * turns. With allowSingle false, a winding of two or more turns may not put a
+ * single turn alone on any layer.
+ */
+export function arrangements(winding: string, layers: number, turns: number, allowSingle = true): WindingPlan[] {
   const out: WindingPlan[] = [];
   for (let series = 1; series <= layers; series++) {
     if (layers % series) continue;
@@ -47,6 +51,7 @@ export function arrangements(winding: string, layers: number, turns: number): Wi
     const split = turnsSplit(turns, series);
     if (split[0] > C.optimiser.max_turns_per_layer) continue;
     if (!chainValid(split)) continue;
+    if (!allowSingle && turns > 1 && split.includes(1)) continue;
     out.push({ winding, layers, series, parallel: layers / series });
   }
   return out;

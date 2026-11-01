@@ -16,7 +16,7 @@ export function defaultSpec(topology: TopologyId): Spec {
     tDead: t.tDead, coss: t.coss,
     vWork: t.vWork, insulation: t.insulation as Spec["insulation"],
     tAmb: d.tAmb, dTMax: d.dTMax, lossBudget: d.lossBudget,
-    maxLayers: d.maxLayers, copper: [...d.copper], dielectric: d.dielectric,
+    maxLayers: d.maxLayers, copper: [...d.copper], dielectric: d.dielectric, singleTurnLayers: d.singleTurnLayers,
     family: d.family as Spec["family"], material: d.material, objective: d.objective as Spec["objective"],
     operatingPoint: d.operatingPoint as Spec["operatingPoint"],
   };

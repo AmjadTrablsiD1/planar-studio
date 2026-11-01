@@ -20,6 +20,8 @@ export type Spec = {
   vWork: number; insulation: Insulation;
   tAmb: number; dTMax: number; lossBudget: number;
   maxLayers: number; copper: string[]; dielectric: number;
+  /** false: a winding of two or more turns never puts one turn alone on a layer. */
+  singleTurnLayers: boolean;
   family: "all" | "E" | "ER"; material: string; objective: Objective;
   operatingPoint: OpPoint;
 };

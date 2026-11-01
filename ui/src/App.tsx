@@ -128,7 +128,7 @@ export default function App() {
     const d = defaultSpec(t);
     // Keep the board and search settings; take the converter defaults of the new topology.
     setSpecRaw({ ...d, tAmb: spec.tAmb, dTMax: spec.dTMax, lossBudget: spec.lossBudget, maxLayers: spec.maxLayers, copper: spec.copper,
-      dielectric: spec.dielectric, family: spec.family, material: spec.material, objective: spec.objective, operatingPoint: spec.operatingPoint });
+      dielectric: spec.dielectric, singleTurnLayers: spec.singleTurnLayers, family: spec.family, material: spec.material, objective: spec.objective, operatingPoint: spec.operatingPoint });
     setLocks({});
   };
   const pinAll = () => {

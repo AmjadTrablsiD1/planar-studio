@@ -136,3 +136,25 @@ test("SVG arcs bend the right way: the midpoint of every drawn arc lies on its c
   const cx = mx - (sign * h * dy) / q, cy = my + (sign * h * dx) / q;
   assert.ok(Math.hypot(cx, cy) < 1e-6, `implied centre ${cx},${cy}`);
 });
+
+test("single-turn layers can be avoided; a one-turn winding is exempt", () => {
+  const fly = { ...defaultSpec("flyback"), singleTurnLayers: false };
+  const r = optimise(fly);
+  assert.ok(r.best?.feasible, JSON.stringify(r.tally));
+  for (const c of r.candidates.slice(0, 10)) {
+    const d = evaluate(fly, c.choice);
+    for (const l of d.layers) {
+      const n = l.winding === "P" ? d.mag.np : d.mag.ns;
+      if (n > 1) assert.ok(l.turns >= 2, `${c.choice.core} L${l.index + 1} ${l.winding} has ${l.turns} turn`);
+    }
+  }
+  // LLC 17:1 — the secondary is one turn, so it stays a single turn, and the design is still found.
+  const llc = optimise({ ...defaultSpec("llc"), singleTurnLayers: false });
+  assert.ok(llc.best?.feasible);
+  assert.ok(llc.best!.layers.filter((l) => l.side === "sec").every((l) => l.turns === 1));
+  // Ns = 2 on two secondary layers can only be 1 + 1 (a single two-turn spiral would end
+  // inside the window), so with four layers and Np = 5 the setting is the reason: it is named.
+  const stuck = optimise(fly, { ns: 2, np: 5, layers: 4 });
+  assert.equal(stuck.feasibleCount, 0);
+  assert.ok(stuck.tally["Single-turn layers avoided"] > 0, JSON.stringify(stuck.tally));
+});

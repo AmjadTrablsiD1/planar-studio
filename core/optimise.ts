@@ -50,7 +50,7 @@ function npOptions(s: Spec, ns: number, locks: Locks): number[] {
 }
 
 /** Every way to give each winding its layers and arrange them. Centre-tap halves mirror each other. */
-function plansFor(s: Spec, layers: number, np: number, ns: number): WindingPlan[][] {
+function plansFor(s: Spec, layers: number, np: number, ns: number, allowSingle = s.singleTurnLayers): WindingPlan[][] {
   const defs = topology(s.topology).windings(s);
   const secs = defs.filter((d) => d.side === "sec");
   const out: WindingPlan[][] = [];
@@ -58,8 +58,8 @@ function plansFor(s: Spec, layers: number, np: number, ns: number): WindingPlan[
     const rest = layers - lp;
     if (rest % secs.length) continue;
     const ls = rest / secs.length;
-    for (const p of arrangements("P", lp, np)) {
-      for (const q of arrangements(secs[0].id, ls, ns)) {
+    for (const p of arrangements("P", lp, np, allowSingle)) {
+      for (const q of arrangements(secs[0].id, ls, ns, allowSingle)) {
         out.push([p, ...secs.map((d) => ({ ...q, winding: d.id }))]);
       }
     }
@@ -131,7 +131,12 @@ export function optimise(s: Spec, locks: Locks = {}, onProgress?: (done: number,
           if (minBoard + 2 * C.pcb.core_vertical_clearance_mm > hw) { tally["Board fits the window"] = (tally["Board fits the window"] ?? 0) + 1; continue; }
           const minTrace = C.pcb.min_trace_mm[oz as keyof typeof C.pcb.min_trace_mm];
           const space = C.pcb.min_space_mm[oz as keyof typeof C.pcb.min_space_mm];
-          for (const plan of plansFor(s, L, np, ns)) {
+          const plans = plansFor(s, L, np, ns);
+          // Say so when it is the single-turn setting that leaves no way to lay out these turns.
+          if (!plans.length && !s.singleTurnLayers && plansFor(s, L, np, ns, true).length) {
+            tally["Single-turn layers avoided"] = (tally["Single-turn layers avoided"] ?? 0) + 1;
+          }
+          for (const plan of plans) {
             // Narrowest trace: the layer with the most turns of each winding.
             const tooThin = plan.some((p) => {
               const t = Math.ceil(turnsW[p.winding] / p.series);

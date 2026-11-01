@@ -13,6 +13,11 @@ arrangements, ranks every design that passes, and shows the winner:
   the copper loss of every layer.
 - **Waveforms** — winding currents, centre-leg flux and primary voltage.
 - **Trade-offs** — best loss per core, loss against turns, AC factor per layer.
+
+**Single-turn layers: Allow / Avoid** (Board section). Allowed, the search may
+put one wide turn on a layer — lowest resistance, one via per turn. Avoided,
+every winding of two or more turns becomes spirals of at least two turns per
+layer; a one-turn winding (e.g. a 17:1 LLC secondary) stays a single turn.
 - **Design steps** — the design path: each formula with the numbers put in.
 
 Exports: a **KiCad project** (board with the real stack-up, every turn as a
@@ -76,11 +81,11 @@ npm test
 npm run test:e2e
 ```
 
-`npm test` — 44 core tests, including KiCad's own DRC on six generated boards
+`npm test` — 45 core tests, including KiCad's own DRC on six generated boards
 (zero violations, zero unconnected items) when KiCad is installed.
 `npm run test:e2e` — Playwright drives the real UI in both themes: every view,
 every topology, every export (the downloaded KiCad project is DRC-checked
-again), save/reopen, bad input, an impossible spec, keyboard, axe, and the
+again), save/reopen, bad input, an impossible spec, the single-turn setting, keyboard, axe, and the
 fold probe at 1366×768 and 1440×900.
 
 ## Limitations

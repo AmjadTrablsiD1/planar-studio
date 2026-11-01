@@ -103,6 +103,8 @@
     "_lossBudget": "Allowed transformer loss as a percentage of Pout. With the default 'smallest core' objective this is what stops the search from just picking the largest core.",
     "lossBudget": 1.5,
     "maxLayers": 8,
+    "_singleTurnLayers": "true lets the search put one wide turn on a layer (lowest resistance, needs a via per turn). false spreads turns as spirals of two or more per layer; a winding of only one turn is exempt.",
+    "singleTurnLayers": true,
     "copper": ["1", "2", "3"],
     "dielectric": 0.2,
     "family": "all",

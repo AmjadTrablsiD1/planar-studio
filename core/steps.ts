@@ -60,7 +60,8 @@ export function designSteps(d: Design): Section[] {
     title: "4 · Layer stack",
     steps: [
       { title: "Stack order (top → bottom)", formula: C.optimiser.pattern_labels[d.choice.pattern],
-        result: d.order.map((w, i) => `L${i + 1} ${w}`).join(" · "), note: plan.join("; ") },
+        result: d.order.map((w, i) => `L${i + 1} ${w}`).join(" · "),
+        note: plan.join("; ") + (s.singleTurnLayers ? "" : ". Single-turn layers avoided: every winding of two or more turns is a spiral on each of its layers.") },
       { title: "Trace width per layer", formula: "w = (b − 2·pull − (t−1)·s) / t,  b = (D − F)/2",
         result: `b = ${fmt(core.window)} mm, pull = ${fmt(l0.pullMm)} mm; widths ${[...new Set(d.layers.map((l) => fmt(l.widthMm)))].join(" / ")} mm`,
         note: `Gap s widened to ${fmt(d.layers.find((l) => l.turns > 1)?.spaceMm ?? l0.spaceMm)} mm so the diagonal jog keeps the ${C.pcb.min_space_mm[d.choice.oz as keyof typeof C.pcb.min_space_mm]} mm fab minimum.` },

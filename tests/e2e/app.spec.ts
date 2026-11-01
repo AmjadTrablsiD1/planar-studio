@@ -85,6 +85,19 @@ test("every topology produces a design, and centre tap gets two secondaries", as
   }
 });
 
+test("avoiding single-turn layers spreads every multi-turn winding into spirals", async ({ page }) => {
+  await fresh(page);
+  await page.getByTestId("view-layers").click();
+  await expect(page.locator(".layer-list")).toContainText("1t");
+  await page.getByTestId("single-avoid").click();
+  await expect(page.getByTestId("single-avoid")).toHaveAttribute("aria-checked", "true");
+  await designed(page);
+  await expect(page.locator(".layer-list")).not.toContainText(" 1t ");
+  await expect(page.locator(".layer-list .lmeta").first()).toBeVisible();
+  for (const t of await page.locator(".layer-list .lmeta").allTextContents()) expect(t).not.toMatch(/· 1t ×/);
+  await page.screenshot({ path: `${SHOTS}/avoid-single-layers.png` });
+});
+
 test("a broken input is named, and the last design stays", async ({ page }) => {
   await fresh(page);
   const before = await page.getByTestId("doc-line").textContent();
