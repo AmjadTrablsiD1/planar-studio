@@ -8,6 +8,10 @@ import { zip } from "./zip.ts";
 import { gerberZip } from "./gerber.ts";
 import { dxf } from "./dxf.ts";
 import { reportHtml } from "./report.ts";
+import type { Rationale } from "../rationale.ts";
+
+/** What the app knows beyond the design itself, for exporters that can use it. */
+export type ExportContext = { why?: Rationale | null };
 
 export type Exporter = {
   id: string;
@@ -15,7 +19,7 @@ export type Exporter = {
   hint: string;
   ext: string;
   mime: string;
-  build: (d: Design, g: Geometry) => string | Uint8Array;
+  build: (d: Design, g: Geometry, ctx?: ExportContext) => string | Uint8Array;
 };
 
 export function baseName(d: Design): string {
@@ -24,7 +28,7 @@ export function baseName(d: Design): string {
 
 export const EXPORTERS: Exporter[] = [
   { id: "report", label: "Design report", hint: "HTML — open and print to PDF", ext: "html", mime: "text/html",
-    build: (d, g) => reportHtml(d, g, new Date().toISOString().slice(0, 16).replace("T", " ")) },
+    build: (d, g, ctx) => reportHtml(d, g, new Date().toISOString().slice(0, 16).replace("T", " "), ctx?.why) },
   { id: "kicad", label: "KiCad project", hint: "zip: .kicad_pcb (stack-up, tracks, vias, cut-outs) + .kicad_pro with the fab rules", ext: "zip", mime: "application/zip",
     build: (d, g) => {
       const name = baseName(d);

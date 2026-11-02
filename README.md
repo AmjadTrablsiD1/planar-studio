@@ -18,7 +18,12 @@ arrangements, ranks every design that passes, and shows the winner:
 put one wide turn on a layer — lowest resistance, one via per turn. Avoided,
 every winding of two or more turns becomes spirals of at least two turns per
 layer; a one-turn winding (e.g. a 17:1 LLC secondary) stays a single turn.
-- **Design steps** — the design path: each formula with the numbers put in.
+- **Design steps** — **why this design** (each choice compared with its
+  neighbours: smaller cores, Ns ± 1, ± 2 layers, other copper weights, stack
+  patterns and ferrites, with what each costs or which check it fails), then
+  the mathematics: every formula typeset, the numbers put in, the reason the
+  value was chosen and what the symbols mean. The inspector's **ⓘ** buttons
+  open the step behind any value. The report carries both.
 
 Exports: a **KiCad project** (board with the real stack-up, every turn as a
 filled copper zone on its net, blind/buried vias, cut-outs, and a `.kicad_pro`
@@ -26,7 +31,12 @@ holding the fab rules), **Gerber + Excellon** (copper per layer, outline,
 PTH and per-span blind/buried drills), **DXF**, and an **HTML report** that
 prints to PDF. Designs save and reopen as `.planar.json`.
 
+The window fits a 13" MacBook (1280×800): side panels scale with the window,
+and **[** / **]** fold the inputs and the inspector away; the candidates panel
+folds too.
+
 ![3D view, exploded and sectioned](docs/screenshot-3d.png)
+![Why this design and the mathematics](docs/screenshot-steps.png)
 ![Layer drawing and stack-up, light theme](docs/screenshot-layers.png)
 
 ## Run it
@@ -81,12 +91,13 @@ npm test
 npm run test:e2e
 ```
 
-`npm test` — 49 core tests, including KiCad's own DRC on eight generated boards
+`npm test` — 52 core tests, including KiCad's own DRC on eight generated boards
 (zero violations, zero unconnected items) when KiCad is installed.
 `npm run test:e2e` — Playwright drives the real UI in both themes: every view,
 every topology, every export (the downloaded KiCad project is DRC-checked
-again), save/reopen, bad input, an impossible spec, the single-turn setting, keyboard, axe, and the
-fold probe at 1366×768 and 1440×900.
+again), save/reopen, bad input, an impossible spec, the single-turn setting,
+the ⓘ and Why explanations, folding panels, keyboard, axe, and the fold probe
+at 1280×680, 1366×768 and 1440×900.
 
 ## Limitations
 

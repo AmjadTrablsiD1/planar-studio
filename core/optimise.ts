@@ -25,7 +25,8 @@ export type Candidate = {
 };
 
 export type Tradeoffs = {
-  byCore: { core: string; set: CoreSet; pTotal: number | null; pCore: number | null; pCopper: number | null }[];
+  /** Best feasible design per core and set, and — for every core — what its rejected designs failed. */
+  byCore: { core: string; set: CoreSet; pTotal: number | null; pCore: number | null; pCopper: number | null; fails: Record<string, number> }[];
   byNs: Record<string, { ns: number; np: number; pCore: number; pCopper: number; pTotal: number }[]>;
 };
 
@@ -100,7 +101,9 @@ export function optimise(s: Spec, locks: Locks = {}, onProgress?: (done: number,
   // Each core only in the assemblies it is sold as (ER cores come in pairs).
   for (const c of cores) for (const set of setsOf(c).filter((x) => !locks.set || x === locks.set)) {
     const key = `${c.id}|${set}`;
-    byCoreMap.set(key, { core: c.id, set, pTotal: null, pCore: null, pCopper: null });
+    const coreFails: Record<string, number> = {};
+    const reject = (k: string) => { tally[k] = (tally[k] ?? 0) + 1; coreFails[k] = (coreFails[k] ?? 0) + 1; };
+    byCoreMap.set(key, { core: c.id, set, pTotal: null, pCore: null, pCopper: null, fails: coreFails });
     const hw = coreInfo(c.id, set).hw;
     for (const mat of mats) for (const ns of nsList) {
       done++;
@@ -121,20 +124,20 @@ export function optimise(s: Spec, locks: Locks = {}, onProgress?: (done: number,
           const L = layerList[layerList.length - 1];
           const choice: Choice = { core: c.id, set, material: mat, layers: L, oz: ozList[0], np, ns, pattern: patterns[0], plan: defaultPlan(defs, L, np) };
           if (!keep.length) insertNear(near, { choice, feasible: false, score: Infinity, pCore: m.pCore, pCopper: NaN, pTotal: NaN, dT: NaN, fails: magFail }, topN);
-          for (const f of magFail) tally[f] = (tally[f] ?? 0) + 1;
+          for (const f of magFail) reject(f);
           continue;
         }
-        if (m.pCore > budget) { tally["Loss budget"] = (tally["Loss budget"] ?? 0) + 1; continue; }
+        if (m.pCore > budget) { reject("Loss budget"); continue; }
         for (const L of layerList) for (const oz of ozList) {
           const h = C.pcb.oz_um[oz as keyof typeof C.pcb.oz_um] / 1000;
           const minBoard = L * h + (L - 1) * Math.max(s.dielectric, C.pcb.dielectric_min_mm) + 2 * C.pcb.soldermask_mm;
-          if (minBoard + 2 * C.pcb.core_vertical_clearance_mm > hw) { tally["Board fits the window"] = (tally["Board fits the window"] ?? 0) + 1; continue; }
+          if (minBoard + 2 * C.pcb.core_vertical_clearance_mm > hw) { reject("Board fits the window"); continue; }
           const minTrace = C.pcb.min_trace_mm[oz as keyof typeof C.pcb.min_trace_mm];
           const space = C.pcb.min_space_mm[oz as keyof typeof C.pcb.min_space_mm];
           const plans = plansFor(s, L, np, ns);
           // Say so when it is the single-turn setting that leaves no way to lay out these turns.
           if (!plans.length && !s.singleTurnLayers && plansFor(s, L, np, ns, true).length) {
-            tally["Single-turn layers avoided"] = (tally["Single-turn layers avoided"] ?? 0) + 1;
+            reject("Single-turn layers avoided");
           }
           for (const plan of plans) {
             // Narrowest trace: the layer with the most turns of each winding.
@@ -142,12 +145,12 @@ export function optimise(s: Spec, locks: Locks = {}, onProgress?: (done: number,
               const t = Math.ceil(turnsW[p.winding] / p.series);
               return (bcu * 1e3 - (t - 1) * space) / t < minTrace;
             });
-            if (tooThin) { tally["Narrowest trace"] = (tally["Narrowest trace"] ?? 0) + 1; continue; }
+            if (tooThin) { reject("Narrowest trace"); continue; }
             // No arrangement beats the ideal DC resistance of the copper this plan gives each winding.
             let pLow = m.pCore;
             for (const p of plan) pLow += (m.irms[p.winding] ** 2 * rhoLo * turnsW[p.winding] ** 2 * mltMin) / (p.layers * bcu * h * 1e-3);
-            if (pLow > budget) { tally["Loss budget"] = (tally["Loss budget"] ?? 0) + 1; continue; }
-            if (tempRise(pLow, area) > s.dTMax) { tally["Temperature rise"] = (tally["Temperature rise"] ?? 0) + 1; continue; }
+            if (pLow > budget) { reject("Loss budget"); continue; }
+            if (tempRise(pLow, area) > s.dTMax) { reject("Temperature rise"); continue; }
             const localBest = bestAt.get(nsKey) ?? Infinity;
             const kth = keep.length >= topN ? keep[keep.length - 1].score : Infinity;
             if (pLow >= localBest && scoreOf(pLow) + (s.objective === "layers" ? L * 1e3 : 0) >= kth) { pruned++; continue; }
@@ -162,7 +165,7 @@ export function optimise(s: Spec, locks: Locks = {}, onProgress?: (done: number,
               const sideOf = (w: string) => defs.find((d) => d.id === w)!.side;
               let board = L * h + 2 * C.pcb.soldermask_mm;
               for (let i = 0; i + 1 < L; i++) board += Math.max(s.dielectric, C.pcb.dielectric_min_mm, sideOf(ord[i]) !== sideOf(ord[i + 1]) ? iso : 0);
-              if (board + 2 * C.pcb.core_vertical_clearance_mm > hw) { tally["Board fits the window"] = (tally["Board fits the window"] ?? 0) + 1; continue; }
+              if (board + 2 * C.pcb.core_vertical_clearance_mm > hw) { reject("Board fits the window"); continue; }
               const choice: Choice = { core: c.id, set, material: mat, layers: L, oz, np, ns, pattern, plan };
               const d = windingStage(s, m, choice, 0);
               evaluated++;
@@ -170,7 +173,7 @@ export function optimise(s: Spec, locks: Locks = {}, onProgress?: (done: number,
                 choice, feasible: d.feasible, score: d.score, pCore: d.mag.pCore, pCopper: d.pCopper,
                 pTotal: d.pTotal, dT: d.dT, fails: d.checks.filter((k) => k.severity === "fail").map((k) => k.label),
               };
-              for (const f of cand.fails) tally[f] = (tally[f] ?? 0) + 1;
+              for (const f of cand.fails) reject(f);
               if (cand.feasible) {
                 feasibleCount++;
                 insert(keep, cand, topN);

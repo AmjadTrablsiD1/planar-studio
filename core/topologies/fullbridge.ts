@@ -57,12 +57,15 @@ export const fullbridge: Topology = {
   steps(s, np, ns) {
     const n = np / ns;
     return [
-      { title: "Turns ratio from the duty limit", formula: "n = Vin,min·Dmax / (Vout+Vf)",
-        result: `n = ${fmt(s.vinMin)}·${fmt(s.dMax)} / ${fmt(vo(s))} = ${fmt(fullbridge.ratio(s))} → Np:Ns = ${np}:${ns} (${fmt(n)})` },
-      { title: "Effective duty", formula: "D = n·(Vout+Vf) / Vin",
+      { id: "ratio", title: "Turns ratio from the duty limit", formula: "n = \\frac{V_{in,min} D_{max}}{V_{out}+V_f}",
+        result: `n = ${fmt(s.vinMin)}·${fmt(s.dMax)} / ${fmt(vo(s))} = ${fmt(fullbridge.ratio(s))} → N_p:N_s = ${np}:${ns} (${fmt(n)})`,
+        why: "D_{max} below 1 keeps headroom for the phase-shift transitions and the voltage lost in the leakage.",
+        where: [["D_{max}", "effective duty at V_{in,min} (your input)"]] },
+      { id: "duty", title: "Effective duty", formula: "D = \\frac{n (V_{out}+V_f)}{V_{in}}",
         result: `D = ${fmt((n * vo(s)) / s.vinMin)} at ${si(s.vinMin, "V")}, ${fmt((n * vo(s)) / s.vinMax)} at ${si(s.vinMax, "V")}` },
-      { title: "Volt-seconds per half cycle", formula: "Vin·(D/2)·T = n·(Vout+Vf)/(2·fsw)",
-        result: `${si((n * vo(s)) / (2 * s.fsw), "Vs")} — independent of Vin` },
+      { id: "voltsec", title: "Volt-seconds per half cycle", formula: "V_{in} \\frac{D}{2} T = \\frac{n (V_{out}+V_f)}{2 f_{sw}}",
+        result: `${si((n * vo(s)) / (2 * s.fsw), "Vs")} — independent of V_in`,
+        why: "The flux swing is the same at every line voltage, so N_p is set by the flux limit alone." },
     ];
   },
 };

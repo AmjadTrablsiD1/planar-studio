@@ -160,6 +160,41 @@ test("save, change, and open the saved design again", async ({ page }, info) => 
   await expect(page.getByTestId("doc-line")).toHaveText(before!);
 });
 
+test("the maths and the reasons: ⓘ opens a step, Why compares alternatives, the report carries both", async ({ page }, info) => {
+  await fresh(page);
+  await page.getByTestId("info-btn-peak-flux-at-amin").click();
+  await expect(page.getByTestId("info-flux").locator(".m-frac").first()).toBeVisible();
+  await expect(page.getByTestId("info-flux").locator(".step-why")).toContainText("the turn count with the lowest total won");
+  await page.getByTestId("info-flux").getByRole("button").click();
+  await expect(page.getByTestId("view-steps")).toHaveAttribute("aria-selected", "true");
+  await expect(page.locator("[data-step=flux]")).toBeInViewport();
+  await expect(page.locator("[data-why=core] tr.chosen")).toBeVisible({ timeout: 30_000 });
+  for (const a of ["turns", "layers", "copper", "pattern", "ferrite"]) await expect(page.locator(`[data-why=${a}] tr.chosen`)).toHaveCount(1);
+  await page.screenshot({ path: `${SHOTS}/why-and-steps.png` });
+  await page.getByTestId("export").click();
+  const [dl] = await Promise.all([page.waitForEvent("download"), page.getByTestId("export-report").click()]);
+  const html = readFileSync(await dl.path()!, "utf8");
+  expect(html).toContain("Why this design");
+  expect(html).toContain("smallest core with a passing design");
+  expect(html).toContain('class="m-frac"');
+});
+
+test("panels fold away and the shell fits a 1280×680 window", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 680 });
+  await fresh(page);
+  expect(await pageScrolls(page)).toEqual({ x: false, y: false });
+  const vpBefore = (await page.locator(".viewport").boundingBox())!;
+  await page.getByTestId("toggle-rail").click();
+  await page.getByTestId("toggle-insp").click();
+  await page.getByTestId("toggle-results").click();
+  const vpAfter = (await page.locator(".viewport").boundingBox())!;
+  expect(vpAfter.width).toBeGreaterThan(vpBefore.width + 400);
+  expect(vpAfter.height).toBeGreaterThan(vpBefore.height + 100);
+  await page.keyboard.press("[");
+  await expect(page.getByTestId("toggle-rail")).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: `${SHOTS}/folded-1280.png` });
+});
+
 test("keyboard: views, explode, candidates", async ({ page }) => {
   await fresh(page);
   await page.locator("body").click({ position: { x: 700, y: 10 } });
@@ -175,6 +210,8 @@ test("keyboard: views, explode, candidates", async ({ page }) => {
 test("fold probe: every named control is on screen at laptop sizes, nothing clipped", async ({ page }) => {
   const r = await foldProbe(page, {
     url: "/",
+    // His MacBook: 1280×800 desktop, about 1280×680 inside the browser; plus the two common laptop sizes.
+    viewports: [{ width: 1280, height: 680 }, { width: 1366, height: 768 }, { width: 1440, height: 900 }],
     cases: [{
       name: "main",
       load: async (p: Page) => { await designed(p); },
@@ -183,9 +220,10 @@ test("fold probe: every named control is on screen at laptop sizes, nothing clip
     }],
   });
   expect(r.failures).toEqual([]);
-  for (const vp of [{ width: 1366, height: 768 }, { width: 1440, height: 900 }]) {
+  for (const vp of [{ width: 1280, height: 680 }, { width: 1366, height: 768 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(vp);
-    expect(await clippedElements(page, [".toolbar .segmented button", ".view-tools button", ".app-header button", ".inspector-tabs button"])).toEqual([]);
+    expect(await clippedElements(page, [".toolbar .segmented button", ".view-tools button", ".app-header button", ".inspector-tabs button", ".status-bar"])).toEqual([]);
+    expect(await pageScrolls(page)).toEqual({ x: false, y: false });
   }
   await page.screenshot({ path: `${SHOTS}/fold-1440.png` });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Locks, Spec, TopologyId } from "../../core/types.ts";
+import type { Choice, Locks, Spec, TopologyId } from "../../core/types.ts";
+import type { Rationale } from "../../core/rationale.ts";
 import { defaultSpec, validate } from "../../core/spec.ts";
 import { evaluate } from "../../core/design.ts";
 import { buildGeometry } from "../../core/geometry.ts";
@@ -61,6 +62,10 @@ export default function App() {
   const [vs, setVs] = useState<ViewState>({ cam: "3d", explode: false, cut: false, showCore: true, visible: [] });
   const [fitTick, setFitTick] = useState(0);
   const [menu, setMenu] = useState(false);
+  // Panels fold away on a small screen; remembered per browser.
+  const [panels, setPanels] = useState(() => store(`${C.ui.storage_key_view}.panels`, { rail: true, insp: true, results: true }));
+  useEffect(() => save(`${C.ui.storage_key_view}.panels`, panels), [panels]);
+  const toggle = (k: "rail" | "insp" | "results") => setPanels((p) => ({ ...p, [k]: !p[k] }));
   const [toast, setToast] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const worker = useRef<Worker | null>(null);
@@ -96,7 +101,7 @@ export default function App() {
         if (m.id !== runId.current) return;
         if (m.kind === "progress") setRun((r) => ({ ...r, progress: m.done / m.total }));
         else if (m.kind === "error") { setRun((r) => ({ ...r, status: "error", error: m.message })); w.terminate(); }
-        else {
+        else if (m.kind === "done") {
           setRun({ status: "done", progress: 1, spec: runSpec, candidates: m.candidates, tradeoffs: m.tradeoffs,
             evaluated: m.evaluated, feasibleCount: m.feasibleCount, pruned: m.pruned, ms: m.ms, tally: m.tally });
           setSelected(0);
@@ -106,7 +111,7 @@ export default function App() {
         }
       };
       w.onerror = (e) => { setRun((r) => ({ ...r, status: "error", error: e.message || "The search worker failed to start." })); };
-      w.postMessage({ id, spec: runSpec, locks } satisfies Request);
+      w.postMessage({ id, kind: "search", spec: runSpec, locks } satisfies Request);
     }, C.ui.debounce_ms);
     return () => window.clearTimeout(timer);
   }, [spec, locks, errors.length]);
@@ -122,6 +127,30 @@ export default function App() {
   useEffect(() => {
     if (design) setVs((v) => ({ ...v, visible: design.layers.map((_, i) => v.visible[i] ?? true) }));
   }, [design]);
+
+  /* ------------------------------------------------ why this design (own worker) */
+  const [why, setWhy] = useState<{ choice: Choice; data: Rationale } | null>(null);
+  const whyWorker = useRef<Worker | null>(null);
+  const whyId = useRef(0);
+  useEffect(() => {
+    if (!design || !run.spec) return;
+    whyWorker.current?.terminate();
+    const w = new Worker(new URL("./optimiser.worker.ts", import.meta.url), { type: "module" });
+    whyWorker.current = w;
+    const id = ++whyId.current;
+    const choice = design.choice;
+    w.onmessage = (e: MessageEvent<Reply>) => {
+      if (e.data.id !== whyId.current) return;
+      if (e.data.kind === "explained") setWhy({ choice, data: e.data.why });
+      w.terminate();
+    };
+    w.postMessage({ id, kind: "explain", spec: run.spec, locks, choice, tradeoffs: run.tradeoffs ?? null } satisfies Request);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- recompute only when the design itself changes
+  }, [design]);
+  useEffect(() => () => whyWorker.current?.terminate(), []);
+  const whyNow = why && design && why.choice === design.choice ? why.data : null;
+  const openStep = (id: string) => { setView("steps"); setFocusStep(id); };
+  const [focusStep, setFocusStep] = useState<string | null>(null);
   useEffect(() => { if (design && layerView >= design.layers.length) setLayerView(0); }, [design, layerView]);
 
   const onTopology = (t: TopologyId) => {
@@ -143,7 +172,7 @@ export default function App() {
     if (!design || !geom) return;
     const ex = EXPORTERS.find((e) => e.id === id)!;
     try {
-      download(`${baseName(design)}.${ex.ext}`, ex.build(design, geom), ex.mime);
+      download(`${baseName(design)}.${ex.ext}`, ex.build(design, geom, { why: whyNow }), ex.mime);
       say(`${ex.label} saved as ${baseName(design)}.${ex.ext}`);
     } catch (e) { setLoadError(`Export failed: ${e instanceof Error ? e.message : String(e)}. Nothing was written; the design is unchanged.`); }
   };
@@ -178,6 +207,8 @@ export default function App() {
       else if (e.key === "e" || e.key === "E") setVs((v) => ({ ...v, explode: !v.explode }));
       else if (e.key === "x" || e.key === "X") setVs((v) => ({ ...v, cut: !v.cut }));
       else if (e.key === "c" || e.key === "C") setVs((v) => ({ ...v, showCore: !v.showCore }));
+      else if (e.key === "[") setPanels((p) => ({ ...p, rail: !p.rail }));
+      else if (e.key === "]") setPanels((p) => ({ ...p, insp: !p.insp }));
       else if (e.key === "Escape") { setMenu(false); setPicked(null); setLoadError(null); }
       else if (e.key === "ArrowDown" && run.candidates.length) { e.preventDefault(); setSelected((i) => Math.min(run.candidates.length - 1, i + 1)); }
       else if (e.key === "ArrowUp") { e.preventDefault(); setSelected((i) => Math.max(0, i - 1)); }
@@ -197,8 +228,12 @@ export default function App() {
   );
 
   return (
-    <div className={`app ${busy ? "busy" : ""}`}>
+    <div className={`app ${busy ? "busy" : ""} ${panels.rail ? "" : "no-rail"} ${panels.insp ? "" : "no-insp"}`}>
       <header className="app-header">
+        <button className={`panel-btn ${panels.rail ? "on" : ""}`} onClick={() => toggle("rail")} aria-pressed={panels.rail} data-test="toggle-rail" title="Show or hide the inputs  [">
+          <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden><rect x="0.5" y="0.5" width="15" height="13" rx="2" fill="none" stroke="currentColor" /><rect x="1.5" y="1.5" width="4.5" height="11" fill="currentColor" opacity=".55" /></svg>
+          <span className="sr-only">Inputs</span>
+        </button>
         <div className="mark" aria-hidden><img src="/favicon.svg" alt="" width={26} height={26} /></div>
         <div className="title-block">
           <div className="app-name">{C.app.name}</div>
@@ -226,11 +261,15 @@ export default function App() {
             </div>
           )}
         </div>
+        <button className={`panel-btn ${panels.insp ? "on" : ""}`} onClick={() => toggle("insp")} aria-pressed={panels.insp} data-test="toggle-insp" title="Show or hide the inspector  ]">
+          <svg width="16" height="14" viewBox="0 0 16 14" aria-hidden><rect x="0.5" y="0.5" width="15" height="13" rx="2" fill="none" stroke="currentColor" /><rect x="10" y="1.5" width="4.5" height="11" fill="currentColor" opacity=".55" /></svg>
+          <span className="sr-only">Inspector</span>
+        </button>
       </header>
 
       <Rail spec={spec} setSpec={setSpec} locks={locks} setLocks={setLocks} errors={errors} onTopology={onTopology} onPinAll={pinAll} pinnedAll={pinnedAll} />
 
-      <main className={`workspace ${run.candidates.length ? "" : "no-results"}`}>
+      <main className={`workspace ${run.candidates.length ? (panels.results ? "" : "results-folded") : "no-results"}`}>
         <div className="toolbar">
           <div className="segmented" role="tablist" aria-label="Views">
             {(C.ui.views as View[]).map((v, i) => (
@@ -266,14 +305,13 @@ export default function App() {
                 ))}
                 <button className="lchip" onClick={() => setVs((v) => ({ ...v, visible: v.visible.map(() => true) }))}>all</button>
               </div>
-              <div className="viewport-hints">drag to orbit · right-drag to pan · wheel to zoom · click a layer to inspect it</div>
             </>
           )}
           {design && geom && view === "layers" && <LayersView d={design} g={geom} layer={layerView} setLayer={setLayerView} />}
           {design && view === "section" && <SectionView d={design} picked={picked} onPick={setPicked} />}
           {design && view === "waveforms" && <WaveformsView d={design} />}
           {design && view === "tradeoffs" && run.tradeoffs && <TradeoffsView d={design} t={run.tradeoffs} />}
-          {design && view === "steps" && <StepsView d={design} />}
+          {design && view === "steps" && <StepsView d={design} why={whyNow} focus={focusStep} onFocused={() => setFocusStep(null)} />}
 
           {!design && run.status !== "error" && !errors.length && !noneFeasible && (
             <div className="empty-state"><img src="/favicon.svg" alt="" width={44} height={44} /><div>Searching cores, turns and stack-ups…</div></div>
@@ -293,10 +331,11 @@ export default function App() {
           {run.status === "error" && <div className="empty-state"><strong>The search failed</strong><span>{run.error}</span></div>}
         </div>
 
-        {run.candidates.length > 0 && <Candidates list={run.candidates} selected={selected} onSelect={(i) => { setSelected(i); setPicked(null); }} />}
+        {run.candidates.length > 0 && <Candidates list={run.candidates} selected={selected} onSelect={(i) => { setSelected(i); setPicked(null); }}
+          open={panels.results} onToggle={() => toggle("results")} />}
       </main>
 
-      <Inspector d={design} picked={picked} clearPick={() => setPicked(null)} />
+      <Inspector d={design} picked={picked} clearPick={() => setPicked(null)} onOpenStep={openStep} />
 
       <footer className="status-bar">
         <span data-test="status">
@@ -304,7 +343,7 @@ export default function App() {
             ? `${run.feasibleCount.toLocaleString()} feasible of ${run.evaluated.toLocaleString()} stack-ups evaluated (${run.pruned.toLocaleString()} pruned) in ${run.ms} ms`
             : run.status === "error" ? "Search failed" : "Ready"}
         </span>
-        <span className="keys"><span className="status-key">1–6</span> views <span className="status-key">E</span> explode <span className="status-key">X</span> section <span className="status-key">F</span> fit <span className="status-key">↑↓</span> candidates <span className="status-key">Esc</span> close</span>
+        <span className="keys"><span className="status-key">1–6</span> views <span className="status-key">[ ]</span> panels <span className="status-key">E</span> explode <span className="status-key">X</span> section <span className="status-key">F</span> fit <span className="status-key">↑↓</span> candidates · drag orbit, right-drag pan, wheel zoom</span>
         <span>{C.app.name} {C.app.version}</span>
       </footer>
 

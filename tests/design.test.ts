@@ -158,3 +158,21 @@ test("single-turn layers can be avoided; a one-turn winding is exempt", () => {
   assert.equal(stuck.feasibleCount, 0);
   assert.ok(stuck.tally["Single-turn layers avoided"] > 0, JSON.stringify(stuck.tally));
 });
+
+test("why this design: every group marks the chosen option and gives a verdict", async () => {
+  const { explain } = await import("../core/rationale.ts");
+  const s = defaultSpec("flyback");
+  const r = optimise(s);
+  const w = explain(s, r.best!.choice, r.tradeoffs);
+  assert.deepEqual(w.groups.map((g) => g.aspect), ["core", "turns", "layers", "copper", "pattern", "ferrite"]);
+  for (const g of w.groups) {
+    assert.equal(g.rows.filter((x) => x.chosen).length, 1, g.aspect);
+    assert.ok(g.verdict.length > 20, `${g.aspect}: "${g.verdict}"`);
+    for (const x of g.rows) if (!x.feasible) assert.ok(x.fails.length > 0, `${g.aspect} ${x.label} fails without a reason`);
+  }
+  // Smallest core first: under the default objective every smaller core must fail.
+  const core = w.groups[0];
+  const mine = core.rows.findIndex((x) => x.chosen);
+  assert.ok(core.rows.slice(0, mine).every((x) => !x.feasible));
+  assert.match(core.verdict, /smallest core with a passing design/);
+});

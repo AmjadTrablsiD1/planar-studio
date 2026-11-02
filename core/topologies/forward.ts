@@ -40,12 +40,15 @@ export const forward: Topology = {
   steps(s, np, ns) {
     const n = np / ns;
     return [
-      { title: "Turns ratio from the duty limit", formula: "n = Vin,min·Dmax / (Vout+Vf)",
-        result: `n = ${fmt(s.vinMin)}·${fmt(s.dMax)} / ${fmt(vo(s))} = ${fmt(forward.ratio(s))} → Np:Ns = ${np}:${ns} (${fmt(n)})` },
-      { title: "Duty at each line voltage", formula: "D = n·(Vout+Vf) / Vin",
+      { id: "ratio", title: "Turns ratio from the duty limit", formula: "n = \\frac{N_p}{N_s} = \\frac{V_{in,min} D_{max}}{V_{out}+V_f}",
+        result: `n = ${fmt(s.vinMin)}·${fmt(s.dMax)} / ${fmt(vo(s))} = ${fmt(forward.ratio(s))} → N_p:N_s = ${np}:${ns} (${fmt(n)})`,
+        why: "D_{max} ≤ 0.5 leaves the off time to reset the core with the same volt-seconds. The integer ratio closest to the target whose losses came out lowest was kept.",
+        where: [["D_{max}", "duty at V_{in,min} (your input)"]] },
+      { id: "duty", title: "Duty at each line voltage", formula: "D = \\frac{n (V_{out}+V_f)}{V_{in}}",
         result: `D = ${fmt((n * vo(s)) / s.vinMin)} at ${si(s.vinMin, "V")}, ${fmt((n * vo(s)) / s.vinMax)} at ${si(s.vinMax, "V")}` },
-      { title: "Volt-seconds are constant", formula: "Vin·D·T = n·(Vout+Vf)/fsw",
-        result: `${si((n * vo(s)) / s.fsw, "Vs")} per cycle at any line voltage`, note: "So the flux swing does not depend on Vin in CCM." },
+      { id: "voltsec", title: "Volt-seconds are constant", formula: "V_{in} D T = \\frac{n (V_{out}+V_f)}{f_{sw}}",
+        result: `${si((n * vo(s)) / s.fsw, "Vs")} per cycle at any line voltage`,
+        why: "So the flux swing does not depend on V_{in} in CCM, and N_p is set by the flux limit alone." },
     ];
   },
 };

@@ -7,6 +7,7 @@ import { TOPOLOGIES } from "../../core/topologies/index.ts";
 import { CORES } from "../../core/cores.ts";
 import { MATERIALS } from "../../core/materials.ts";
 import { C } from "./constants";
+import { save, store } from "./theme";
 
 type NumDef = { key: keyof Spec; label: string; unit: string; scale: number; hint?: string };
 
@@ -71,6 +72,18 @@ function Select<T extends string | number>({ id, label, value, options, onChange
   );
 }
 
+/** A foldable group of inputs; whether it is open is remembered per browser. */
+function Sec({ id, title, children, extra }: { id: string; title: string; children: React.ReactNode; extra?: React.ReactNode }) {
+  const key = `${C.ui.storage_key_view}.rail.${id}`;
+  const [open, setOpen] = useState(() => store(key, true));
+  return (
+    <details className="rail-sec" open={open} onToggle={(e) => { const o = (e.target as HTMLDetailsElement).open; setOpen(o); save(key, o); }} data-test={`sec-${id}`}>
+      <summary className="eyebrow">{title}{extra}</summary>
+      {children}
+    </details>
+  );
+}
+
 export function Rail({ spec, setSpec, locks, setLocks, errors, onTopology, onPinAll, pinnedAll }: {
   spec: Spec; setSpec: (s: Spec) => void; locks: Locks; setLocks: (l: Locks) => void; errors: FieldError[];
   onTopology: (t: TopologyId) => void; onPinAll: () => void; pinnedAll: boolean;
@@ -109,14 +122,16 @@ export function Rail({ spec, setSpec, locks, setLocks, errors, onTopology, onPin
         )}
       </div>
 
-      <div className="eyebrow">Isolation and heat</div>
+      <Sec id="heat" title="Isolation and heat">
       <div className="row2">
         <Select id="f-insulation" label="Insulation" value={spec.insulation} onChange={(v) => set("insulation", v)}
           options={C.isolation.classes.map((c) => [c as Spec["insulation"], c[0].toUpperCase() + c.slice(1)])} />
         {HEAT.map((f) => <NumField key={f.key} def={f} spec={spec} set={set} error={err(f.key)} />)}
       </div>
 
-      <div className="eyebrow">Board</div>
+      </Sec>
+
+      <Sec id="board" title="Board">
       <div className="row2">
         <Select id="f-maxLayers" label="Max layers" value={spec.maxLayers} onChange={(v) => set("maxLayers", v)}
           options={C.pcb.layer_counts.map((n) => [n, `${n} layers`] as [number, string])} />
@@ -148,7 +163,9 @@ export function Rail({ spec, setSpec, locks, setLocks, errors, onTopology, onPin
           : "Turns spread as spirals of two or more per layer (a one-turn winding is exempt)."}</span>
       </div>
 
-      <div className="eyebrow">Search</div>
+      </Sec>
+
+      <Sec id="search" title="Search">
       <div className="row2">
         <Select id="f-objective" label="Objective" value={spec.objective} onChange={(v) => set("objective", v)}
           options={C.optimiser.objectives.map((o) => [o as Spec["objective"], C.optimiser.objective_labels[o as keyof typeof C.optimiser.objective_labels]])} />
@@ -160,10 +177,13 @@ export function Rail({ spec, setSpec, locks, setLocks, errors, onTopology, onPin
           options={[["auto", "Auto (by fsw)"], ...MATERIALS.map((m) => [m.id, `${m.id} · ${m.vendor}`] as [string, string])]} />
       </div>
 
-      <div className="eyebrow pin-head">Pins <span className="count-pill">{pinCount}</span>
-        <button className="link-btn" onClick={() => setLocks({})} disabled={!pinCount} data-test="unpin-all">clear</button>
-        <button className="link-btn" onClick={onPinAll} disabled={pinnedAll} data-test="pin-all" title="Pin every choice of the selected design, then change one">pin selected</button>
-      </div>
+      </Sec>
+
+      <Sec id="pins" title="Pins" extra={<span className="pin-tools"><span className="count-pill">{pinCount}</span></span>}>
+        <div className="pin-actions">
+          <button className="link-btn" onClick={() => setLocks({})} disabled={!pinCount} data-test="unpin-all">clear pins</button>
+          <button className="link-btn" onClick={onPinAll} disabled={pinnedAll} data-test="pin-all" title="Pin every choice of the selected design, then change one">pin the selected design</button>
+        </div>
       <div className="row2">
         <Select id="pin-core" label="Core" value={locks.core ?? "auto"} onChange={(v) => lock("core", v)}
           options={[["auto", "Auto"], ...CORES.filter((c) => spec.family === "all" || c.family === spec.family).map((c) => [c.id, c.id] as [string, string])]} />
@@ -178,6 +198,7 @@ export function Rail({ spec, setSpec, locks, setLocks, errors, onTopology, onPin
         <Select id="pin-pattern" label="Stack" value={locks.pattern ?? "auto"} onChange={(v) => lock("pattern", v as Locks["pattern"] | "auto")}
           options={[["auto", "Auto"], ...C.optimiser.patterns.map((p) => [p, C.optimiser.pattern_labels[p as keyof typeof C.optimiser.pattern_labels]] as [string, string])]} />
       </div>
+      </Sec>
     </aside>
   );
 }

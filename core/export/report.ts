@@ -10,6 +10,8 @@ import { designSteps, stackupRows } from "../steps.ts";
 import { assumptions, notEvaluated } from "../coverage.ts";
 import { layerSvg, sectionSvg, type Palette } from "./svg.ts";
 import { minmax } from "../waveform.ts";
+import { MATH_CSS, mathHtml, richHtml } from "../math.ts";
+import type { Rationale } from "../rationale.ts";
 
 export const PRINT_PALETTE: Palette = {
   pri: "#B5651D", sec: "#14806F", sec2: "#4C8A22", text: "#1F2F3C", muted: "#56697A", line: "#B8C4CE",
@@ -39,12 +41,20 @@ function waveSvg(d: Design): string {
 <text x="${W - pad}" y="${H - 4}" font-size="10" text-anchor="end" fill="${PRINT_PALETTE.muted}">one period ${si(1 / d.spec.fsw, "s")} · ${fmt(lo)} … ${fmt(hi)} A</text></svg>`;
 }
 
-export function reportHtml(d: Design, g: Geometry, generated: string): string {
+export function reportHtml(d: Design, g: Geometry, generated: string, why?: Rationale | null): string {
   const s = d.spec, m = d.mag;
   const title = `${m.topo.label} planar transformer — ${m.core.name}`;
   const metric = (k: string, v: string) => `<div class="m"><span>${esc(k)}</span><strong>${esc(v)}</strong></div>`;
   const checks = d.checks.map((c) => `<tr class="${c.severity}"><td>${c.severity === "fail" ? "✗" : c.severity === "warn" ? "!" : "✓"}</td><td>${esc(c.label)}</td><td>${esc(c.detail)}</td></tr>`).join("");
-  const steps = designSteps(d).map((sec) => `<h3>${esc(sec.title)}</h3>${sec.steps.map((st) => `<div class="step"><div class="st">${esc(st.title)}</div><code>${esc(st.formula)}</code><div class="res">${esc(st.result)}</div>${st.note ? `<div class="note">${esc(st.note)}</div>` : ""}</div>`).join("")}`).join("");
+  const steps = designSteps(d).map((sec) => `<h3>${esc(sec.title)}</h3>${sec.steps.map((st) => `<div class="step" id="step-${st.id}">
+<div class="st">${richHtml(st.title)}</div><div class="fx">${mathHtml(st.formula)}</div><div class="res">${richHtml(st.result)}</div>
+${st.why ? `<div class="why"><b>Why:</b> ${richHtml(st.why)}</div>` : ""}${st.note ? `<div class="note">${richHtml(st.note)}</div>` : ""}
+${st.where?.length ? `<div class="where">${st.where.map(([sym, txt]) => `<span>${mathHtml(sym)} — ${richHtml(txt)}</span>`).join("")}</div>` : ""}</div>`).join("")}`).join("");
+  const whyHtml = why?.groups.length
+    ? why.groups.map((gr) => `<h3>${esc(gr.title)} — ${esc(gr.question)}</h3>
+<table class="why-t"><tr><th>Option</th><th>Total loss</th><th>Result</th><th></th></tr>${gr.rows.map((r) => `<tr class="${r.chosen ? "chosen" : r.feasible ? "" : "fail"}"><td>${r.chosen ? "▶ " : ""}${esc(r.label)}</td><td class="mono">${r.pTotal === null ? "—" : `${r.approx ? "≈ " : ""}${si(r.pTotal, "W")}`}</td><td>${r.feasible ? (r.chosen ? "chosen" : "passes") : `fails: ${esc(r.fails.join(", "))}`}</td><td class="muted">${r.extra ? richHtml(r.extra) : ""}</td></tr>`).join("")}</table>
+<p class="verdict">${richHtml(gr.verdict)}</p>`).join("")
+    : `<p class="sub">The comparison with neighbouring designs was not available when this report was made.</p>`;
   const stack = stackupRows(d).map((r) => `<tr class="${r.kind}"><td>${esc(r.name)}</td><td>${fmt(r.thick * 1000)} µm</td><td>${esc(r.detail)}</td></tr>`).join("");
   const layers = d.layers.map((_, i) => `<figure>${layerSvg(d, g, i, PRINT_PALETTE)}</figure>`).join("");
   const losses = Object.entries(d.copper.byWinding).map(([w, b]) => `<tr><td>${w}</td><td>${si(b.irms, "A")}</td><td>${si(b.rdc, "Ω")}</td><td>${si(b.rac, "Ω")}</td><td>${si(b.loss, "W")}</td></tr>`).join("");
@@ -64,7 +74,11 @@ tr.iso td{background:#FBF1DC}tr.copper td:first-child{font-weight:600}
 .step{margin:6px 0 10px;padding-left:10px;border-left:2px solid var(--l)}.st{font-weight:600}code{font:11px "JetBrains Mono",Menlo,monospace;color:#3E4F5D}
 .res{font-family:"JetBrains Mono",Menlo,monospace}.note{color:var(--m);font-size:11px}
 .layers{display:grid;grid-template-columns:1fr 1fr;gap:12px}figure{margin:0;border:1px solid var(--l);border-radius:5px;padding:6px;break-inside:avoid}
-figure svg{width:100%;height:auto;display:block}ul{padding-left:18px}.print{position:fixed;top:14px;right:14px;padding:8px 14px;border-radius:6px;border:0;background:#1F64A8;color:#fff;font-weight:600;cursor:pointer}
+figure svg{width:100%;height:auto;display:block}
+${MATH_CSS}
+.fx{margin:3px 0;font-size:13px}.why{font-size:11.5px;margin-top:3px}.where{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:10.5px;color:var(--m);margin-top:3px}
+.why-t td,.why-t th{font-size:11px}.why-t tr.chosen td{font-weight:600;background:#EEF4FA}.why-t tr.fail td{color:#8A3A2A}
+.verdict{margin:4px 0 12px;font-size:11.5px}.muted{color:var(--m)}.mono{font-family:"JetBrains Mono",Menlo,monospace}ul{padding-left:18px}.print{position:fixed;top:14px;right:14px;padding:8px 14px;border-radius:6px;border:0;background:#1F64A8;color:#fff;font-weight:600;cursor:pointer}
 @media print{body{background:#fff}main{padding:0}.print{display:none}h2{break-after:avoid}}
 </style></head><body><button class="print" onclick="window.print()">Print / Save as PDF</button><main>
 <h1>${esc(title)}</h1>
@@ -75,7 +89,10 @@ ${metric("Lm", si(m.lm, "H"))}${metric("Gap", m.gapMm === null ? "none" : `${fmt
 ${metric("Core loss", si(m.pCore, "W"))}${metric("Copper loss", si(d.pCopper, "W"))}${metric("Total", `${si(d.pTotal, "W")} (${pct(d.lossPct)})`)}${metric("ΔT", `${fmt(d.dT)} °C`)}
 </div>
 <h2>Checks</h2><table>${checks}</table>
-<h2>Design path</h2>${steps}
+<h2>Why this design</h2>
+<p class="sub">Each table changes one thing about the chosen design, lets the search re-optimise the rest, and shows what the alternative costs or which check it fails. ≈ marks the search's quick estimate (within about 1 %).</p>
+${whyHtml}
+<h2>Design path — the mathematics</h2>${steps}
 <h2>Winding losses</h2><table><tr><th>Winding</th><th>Irms</th><th>Rdc</th><th>Rac,eff</th><th>Loss</th></tr>${losses}</table>
 <h2>Waveforms at ${fmt(m.op.vin)} V</h2>${waveSvg(d)}
 <h2>Stack-up (fabrication)</h2><table><tr><th>Layer</th><th>Thickness</th><th>Content</th></tr>${stack}</table>

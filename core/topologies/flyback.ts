@@ -3,6 +3,7 @@
 // so primary and secondary never conduct together and the core carries a DC flux.
 
 import { sample, pwl } from "../waveform.ts";
+import { C } from "../constants.ts";
 import { fmt, si } from "../format.ts";
 import type { Topology } from "./types.ts";
 import { pin, vo } from "./types.ts";
@@ -61,13 +62,21 @@ export const flyback: Topology = {
     const d = vr / (s.vinMin + vr);
     const ion = pin(s) / (s.vinMin * d);
     return [
-      { title: "Turns ratio from the duty limit", formula: "n = Vin,min·Dmax / ((Vout+Vf)·(1−Dmax))",
-        result: `n = ${fmt(s.vinMin)}·${fmt(s.dMax)} / (${fmt(vo(s))}·${fmt(1 - s.dMax)}) = ${fmt(flyback.ratio(s))} → Np:Ns = ${np}:${ns} (${fmt(n)})` },
-      { title: "Reflected voltage and real duty", formula: "Vr = n·(Vout+Vf),  D = Vr / (Vin,min + Vr)",
-        result: `Vr = ${si(vr, "V")}, D = ${fmt(d)}`, note: "The switch sees Vin,max + Vr plus the leakage spike." },
-      { title: "Magnetising inductance from the ripple ratio", formula: "Ion = Pin/(Vin,min·D),  Lm = Vin,min·D / (r·Ion·fsw)",
-        result: `Ion = ${si(ion, "A")}, r = ${fmt(s.ripple)} → Lm = ${si(lm, "H")}`,
-        note: s.ripple >= 2 ? "r = 2 is the CCM/DCM boundary." : "r < 2 keeps full load in CCM at low line." },
+      { id: "ratio", title: "Turns ratio from the duty limit",
+        formula: "n = \\frac{N_p}{N_s} = \\frac{V_{in,min} D_{max}}{(V_{out}+V_f)(1-D_{max})}",
+        result: `n = ${fmt(s.vinMin)}·${fmt(s.dMax)} / (${fmt(vo(s))}·${fmt(1 - s.dMax)}) = ${fmt(flyback.ratio(s))} → N_p:N_s = ${np}:${ns} (${fmt(n)})`,
+        why: `D_{max} sets the trade between primary current and switch voltage: a larger D_{max} lowers the peak current but raises the reflected voltage the switch must block. ${np}:${ns} is the integer ratio within ±${Math.round(100 * C.optimiser.ratio_tol.flyback)} % of the target whose total loss came out lowest on this core.`,
+        where: [["N_p, N_s", "primary and secondary turns"], ["D_{max}", "duty at V_{in,min} (your input)"], ["V_f", "rectifier drop"]] },
+      { id: "duty", title: "Reflected voltage and real duty", formula: "V_r = n (V_{out}+V_f), \\; D = \\frac{V_r}{V_{in,min}+V_r}",
+        result: `V_r = ${si(vr, "V")}, D = ${fmt(d)}`,
+        why: "The rounded ratio fixes the real duty. The switch sees V_{in,max} + V_r plus the leakage spike, which is why leakage is reported." },
+      { id: "lm", title: "Magnetising inductance from the ripple ratio",
+        formula: "I_{on} = \\frac{P_{in}}{V_{in,min} D}, \\; L_m = \\frac{V_{in,min} D}{r \\, I_{on} f_{sw}}",
+        result: `I_{on} = ${si(ion, "A")}, r = ${fmt(s.ripple)} → L_m = ${si(lm, "H")}`,
+        why: s.ripple >= 2
+          ? "r = 2 is the CCM/DCM boundary: the smallest L_m and fewest turns, at the price of the highest rms currents."
+          : `r = ${fmt(s.ripple)} keeps full load in CCM at low line: lower rms current than DCM, more turns for the same flux. The gap is then cut to give exactly this L_m.`,
+        where: [["r", "ripple ratio ΔI/I_{on} (your input)"], ["I_{on}", "mean primary current while the switch is on"]] },
     ];
   },
 };

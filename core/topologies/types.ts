@@ -1,7 +1,11 @@
 import type { Operation, Spec, WindingDef } from "../types.ts";
 
-/** A row of the design-steps view: what is computed, how, and the number. */
-export type Step = { title: string; formula: string; result: string; note?: string };
+/**
+ * One step of the design path. formula and result use the notation of
+ * core/math.ts; why says why this value (and not another) was chosen; where
+ * names the symbols. id links the inspector's ⓘ buttons to the step.
+ */
+export type Step = { id: string; title: string; formula: string; result: string; note?: string; why?: string; where?: [string, string][] };
 
 export type Topology = {
   id: Spec["topology"];
